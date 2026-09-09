@@ -1,5 +1,4 @@
-// pkg/feemarket/feemarket.go
-// Package feemarket implements a PI-regulator based dynamic fee market 
+// Package feemarket implements a PI-regulator based dynamic fee market
 // as specified in ChaosChain Architecture Blueprint v2.0, Section 3.4.
 // It is intentionally decoupled from the Cosmos SDK for pure domain testing.
 package feemarket
@@ -15,8 +14,8 @@ type Params struct {
 	Kp float64
 	// Ki is the integral gain coefficient.
 	Ki float64
-	// AntiWindupLimit prevents the integral term from growing unbounded 
-	// during sustained overload/underload, ensuring the system can 
+	// AntiWindupLimit prevents the integral term from growing unbounded
+	// during sustained overload/underload, ensuring the system can
 	// recover and adjust fees downward when load normalizes.
 	AntiWindupLimit float64
 }
@@ -29,7 +28,7 @@ type State struct {
 	Acc float64
 }
 
-// Next calculates the next block's fee market state based on the 
+// Next calculates the next block's fee market state based on the
 // PI-regulator formula: baseFee_next = baseFee_prev * exp(Kp*e + Ki*acc).
 func Next(prev State, gasUsed, gasTarget float64, p Params) (State, error) {
 	// 1. Input validation (Guard clauses for KISS/SOLID)
