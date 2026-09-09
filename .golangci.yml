@@ -1,0 +1,37 @@
+# .golangci.yml
+run:
+  timeout: 5m
+  issues-exit-code: 1
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - revive
+    - gosec
+    - bodyclose
+    - misspell
+    - unconvert
+    - unparam
+    - gocritic
+    - exhaustive
+
+linters-settings:
+  gosec:
+    severity: medium
+    confidence: medium
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: blank-imports
+        severity: warning
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
