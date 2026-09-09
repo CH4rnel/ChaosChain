@@ -20,20 +20,18 @@ linters:
     - unparam
     - gocritic
     - exhaustive
-    - copyloopvar # Useful for Go 1.22+; checks for correct variable capture in loops.
-
-linters-settings:
-  gosec:
-    severity: medium
-    confidence: medium
-  revive:
-    rules:
-      - name: exported
-        severity: warning
-      - name: blank-imports
-        severity: warning
+    - copyloopvar
+  settings:
+    gosec:
+      severity: medium
+      confidence: medium
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+        - name: blank-imports
+          severity: warning
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
