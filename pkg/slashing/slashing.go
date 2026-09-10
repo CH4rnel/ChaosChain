@@ -1,11 +1,9 @@
 // Package slashing implements the correlated slashing penalty logic
-// as specified in ChaosChain Architecture Blueprint v2.0, Section 3.5.
 // It is intentionally decoupled from the Cosmos SDK for pure domain testing.
 package slashing
 
 import (
 	"errors"
-	"math"
 )
 
 // Params holds the configuration for the slashing penalty calculation.
@@ -26,14 +24,14 @@ func CalculateSlashFraction(faultyShare float64, p Params) (float64, error) {
 		return 0.0, errors.New("faultyShare must be in the range [0.0, 1.0]")
 	}
 	if p.BaseSlash < 0.0 {
-		return 0.0, errors.New("BaseSlash cannot be negative")
+		return 0.0, errors.New("baseSlash cannot be negative")
 	}
 	if p.Kappa < 0.0 {
-		return 0.0, errors.New("Kappa cannot be negative")
+		return 0.0, errors.New("kappa cannot be negative")
 	}
 
-	// 2. Calculate correlation penalty
-	correlationPenalty := p.Kappa * math.Pow(faultyShare, 2)
+	// 2. Calculate correlation penalty (expanded math.Pow for performance and precision)
+	correlationPenalty := p.Kappa * faultyShare * faultyShare
 
 	// 3. Calculate total slash fraction
 	slashFraction := p.BaseSlash + correlationPenalty
