@@ -1,6 +1,5 @@
-// Package feemarket implements a PI-regulator based dynamic fee market
-// as specified in ChaosChain Architecture Blueprint v2.0, Section 3.4.
-// It is intentionally decoupled from the Cosmos SDK for pure domain testing.
+// The feemarket package implements a dynamic fee system based on the PI regulator.
+// It is intentionally separated from the Cosmos SDK to allow for pure domain-specific testing.
 package feemarket
 
 import (
@@ -11,21 +10,21 @@ import (
 // Params holds the configuration for the PI-regulator.
 type Params struct {
 	// Kp is the proportional gain coefficient.
-	Kp float64
+	Kp float64 `json:"kp"`
 	// Ki is the integral gain coefficient.
-	Ki float64
+	Ki float64 `json:"ki"`
 	// AntiWindupLimit prevents the integral term from growing unbounded
 	// during sustained overload/underload, ensuring the system can
 	// recover and adjust fees downward when load normalizes.
-	AntiWindupLimit float64
+	AntiWindupLimit float64 `json:"anti_windup_limit"`
 }
 
 // State represents the current fee market state.
 type State struct {
 	// BaseFee is the current base fee per gas unit.
-	BaseFee float64
+	BaseFee float64 `json:"base_fee"`
 	// Acc is the accumulated integral error term.
-	Acc float64
+	Acc float64 `json:"acc"`
 }
 
 // Next calculates the next block's fee market state based on the
