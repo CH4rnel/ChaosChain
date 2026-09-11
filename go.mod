@@ -3,19 +3,21 @@ module github.com/CH4rnel/ChaosChain
 go 1.25.9 // fuck! changed in version 1.27.0 for compatibility with golangci-lint and Cosmos SDK. trying to install Toolchain 27 has driven me completely crazy, bro—I just can't do it this way
 
 require (
+	cosmossdk.io/collections v1.4.0
+	cosmossdk.io/core v1.1.0
 	cosmossdk.io/depinject v1.2.1
-	cosmossdk.io/log v1.6.1
+	cosmossdk.io/log/v2 v2.1.0
+	cosmossdk.io/store v1.1.2
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-sdk v0.54.0
 	github.com/spf13/cobra v1.10.2
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
 	cosmossdk.io/api v1.0.0 // indirect
-	cosmossdk.io/collections v1.4.0 // indirect
-	cosmossdk.io/core v1.1.0 // indirect
 	cosmossdk.io/errors v1.1.0 // indirect
-	cosmossdk.io/log/v2 v2.1.0 // indirect
+	cosmossdk.io/log v1.6.1 // indirect
 	cosmossdk.io/math v1.5.3 // indirect
 	cosmossdk.io/schema v1.1.0 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
@@ -198,7 +200,6 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spf13/viper v1.21.0 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/supranational/blst v0.3.16 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
