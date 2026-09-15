@@ -1,6 +1,7 @@
 package feemarket
 
 import (
+	"reflect"
 	"testing"
 	"testing/quick"
 )
