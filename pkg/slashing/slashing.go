@@ -1,25 +1,26 @@
 // Package slashing implements the correlated slashing penalty logic
-// It is intentionally decoupled from the Cosmos SDK for pure domain testing.
 package slashing
 
 import (
 	"errors"
+	"math"
+)
+
+// Maximum reasonable limits for parameters
+const (
+	MaxBaseSlash = 1.0   // 100% slashing — the absolute maximum.
+	MaxKappa     = 100.0 // Extreme correlation coefficient
 )
 
 // Params holds the configuration for the slashing penalty calculation.
 type Params struct {
-	// BaseSlash is the minimum penalty for any protocol violation (e.g., 0.01 for 1%).
 	BaseSlash float64 `json:"base_slash"`
-	// Kappa is the correlation penalty coefficient.
-	// A higher value exponentially increases the penalty for mass, coordinated failures.
-	Kappa float64 `json:"kappa"`
+	Kappa     float64 `json:"kappa"`
 }
 
-// CalculateSlashFraction computes the slashing percentage based on the formula:
-// slash_fraction = base_slash + κ × faulty_share²
-// The result is strictly clamped to a maximum of 1.0 (100% slash).
+// CalculateSlashFraction computes the slashing percentage.
 func CalculateSlashFraction(faultyShare float64, p Params) (float64, error) {
-	// 1. Input validation (Guard clauses)
+	// 1. Basic validation
 	if faultyShare < 0.0 || faultyShare > 1.0 {
 		return 0.0, errors.New("faultyShare must be in the range [0.0, 1.0]")
 	}
@@ -30,15 +31,28 @@ func CalculateSlashFraction(faultyShare float64, p Params) (float64, error) {
 		return 0.0, errors.New("kappa cannot be negative")
 	}
 
-	// 2. Calculate correlation penalty (expanded math.Pow for performance and precision)
+	// 2. Overflow protection
+	if p.BaseSlash > MaxBaseSlash {
+		return 0.0, errors.New("baseSlash exceeds maximum (1.0 = 100%)")
+	}
+	if p.Kappa > MaxKappa {
+		return 0.0, errors.New("kappa exceeds maximum reasonable value")
+	}
+
+	// 3. Calculate correlation penalty
 	correlationPenalty := p.Kappa * faultyShare * faultyShare
 
-	// 3. Calculate total slash fraction
+	// 4. Calculate total slash fraction
 	slashFraction := p.BaseSlash + correlationPenalty
 
-	// 4. Clamp to maximum 1.0 (100%) to prevent logical absurdities
+	// 5. Clamp to maximum 1.0 (100%)
 	if slashFraction > 1.0 {
 		slashFraction = 1.0
+	}
+
+	// 6. Final safety check
+	if math.IsInf(slashFraction, 0) || math.IsNaN(slashFraction) {
+		return 0.0, errors.New("calculated slashFraction is not finite")
 	}
 
 	return slashFraction, nil
