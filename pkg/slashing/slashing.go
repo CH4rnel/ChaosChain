@@ -9,10 +9,10 @@ import (
 // Params holds the configuration for the slashing penalty calculation.
 type Params struct {
 	// BaseSlash is the minimum penalty for any protocol violation (e.g., 0.01 for 1%).
-	BaseSlash float64
+	BaseSlash float64 `json:"base_slash"`
 	// Kappa is the correlation penalty coefficient.
 	// A higher value exponentially increases the penalty for mass, coordinated failures.
-	Kappa float64
+	Kappa float64 `json:"kappa"`
 }
 
 // CalculateSlashFraction computes the slashing percentage based on the formula:
@@ -37,7 +37,6 @@ func CalculateSlashFraction(faultyShare float64, p Params) (float64, error) {
 	slashFraction := p.BaseSlash + correlationPenalty
 
 	// 4. Clamp to maximum 1.0 (100%) to prevent logical absurdities
-	// (e.g., trying to slash 150% of a validator's stake).
 	if slashFraction > 1.0 {
 		slashFraction = 1.0
 	}
