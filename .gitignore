@@ -1,0 +1,25 @@
+# Compiled binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Testing artifacts
+coverage.out
+coverage.html
+*.prof
+
+# Tool artifacts
+sbom.json
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
