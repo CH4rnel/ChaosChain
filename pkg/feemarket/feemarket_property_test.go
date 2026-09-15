@@ -1,12 +1,13 @@
 package feemarket
 
 import (
+	"math/rand"
 	"reflect"
 	"testing"
 	"testing/quick"
 )
 
-// Generator of realistic test values
+// realisticInputs implements the quick.Generator interface
 type realisticInputs struct {
 	BaseFee    float64
 	GasUsed    float64
@@ -16,14 +17,14 @@ type realisticInputs struct {
 	AntiWindup float64
 }
 
-func (r realisticInputs) Generate(rand *quick.Rand, size int) reflect.Value {
+func (r realisticInputs) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(realisticInputs{
-		BaseFee:    rand.Float64() * 1000,        // 0 - 1000
-		GasUsed:    rand.Float64() * 20000000,    // 0 - 20M gas
-		GasTarget:  10000000 + rand.Float64()*10000000, // 10M - 20M gas
-		Kp:         rand.Float64() * 2.0,         // 0 - 2.0
-		Ki:         rand.Float64() * 0.5,         // 0 - 0.5
-		AntiWindup: 1.0 + rand.Float64()*9.0,     // 1.0 - 10.0
+		BaseFee:    rand.Float64() * 1000,               // 0 - 1000
+		GasUsed:    rand.Float64() * 20000000,           // 0 - 20M gas
+		GasTarget:  10000000 + rand.Float64()*10000000,  // 10M - 20M gas
+		Kp:         rand.Float64() * 2.0,                // 0 - 2.0
+		Ki:         rand.Float64() * 0.5,                // 0 - 0.5
+		AntiWindup: 1.0 + rand.Float64()*9.0,            // 1.0 - 10.0
 	})
 }
 
@@ -45,12 +46,27 @@ func TestProperty_BaseFeeAlwaysPositive(t *testing.T) {
 	}
 }
 
+// inputsWithAcc implements the quick.Generator interface
+type inputsWithAcc struct {
+	realisticInputs
+	PrevAcc float64
+}
+
+func (r inputsWithAcc) Generate(rand *rand.Rand, size int) reflect.Value {
+	return reflect.ValueOf(inputsWithAcc{
+		realisticInputs: realisticInputs{
+			BaseFee:    rand.Float64() * 1000,
+			GasUsed:    rand.Float64() * 20000000,
+			GasTarget:  10000000 + rand.Float64()*10000000,
+			Kp:         rand.Float64() * 2.0,
+			Ki:         rand.Float64() * 0.5,
+			AntiWindup: 1.0 + rand.Float64()*9.0,
+		},
+		PrevAcc: (rand.Float64() - 0.5) * 20.0, // -10 to +10
+	})
+}
+
 func TestProperty_AccumulatorBounded(t *testing.T) {
-	type inputsWithAcc struct {
-		realisticInputs
-		PrevAcc float64
-	}
-	
 	f := func(inputs inputsWithAcc) bool {
 		prevState := State{BaseFee: inputs.BaseFee, Acc: inputs.PrevAcc}
 		params := Params{Kp: inputs.Kp, Ki: inputs.Ki, AntiWindupLimit: inputs.AntiWindup}
@@ -63,21 +79,7 @@ func TestProperty_AccumulatorBounded(t *testing.T) {
 		return nextState.Acc >= -inputs.AntiWindup && nextState.Acc <= inputs.AntiWindup
 	}
 	
-	generate := func(rand *quick.Rand, size int) reflect.Value {
-		return reflect.ValueOf(inputsWithAcc{
-			realisticInputs: realisticInputs{
-				BaseFee:    rand.Float64() * 1000,
-				GasUsed:    rand.Float64() * 20000000,
-				GasTarget:  10000000 + rand.Float64()*10000000,
-				Kp:         rand.Float64() * 2.0,
-				Ki:         rand.Float64() * 0.5,
-				AntiWindup: 1.0 + rand.Float64()*9.0,
-			},
-			PrevAcc: (rand.Float64() - 0.5) * 20.0, // -10 to +10
-		})
-	}
-	
-	if err := quick.Check(f, &quick.Config{MaxCount: 10000, Values: generate}); err != nil {
+	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
 		t.Errorf("Invariant violated: %v", err)
 	}
 }
@@ -126,13 +128,28 @@ func TestProperty_MonotonicityOnUnderload(t *testing.T) {
 	}
 }
 
+// inputsWithAccForDeterminism implements the quick.Generator interface
+type inputsWithAccForDeterminism struct {
+	realisticInputs
+	Acc float64
+}
+
+func (r inputsWithAccForDeterminism) Generate(rand *rand.Rand, size int) reflect.Value {
+	return reflect.ValueOf(inputsWithAccForDeterminism{
+		realisticInputs: realisticInputs{
+			BaseFee:    rand.Float64() * 1000,
+			GasUsed:    rand.Float64() * 20000000,
+			GasTarget:  10000000 + rand.Float64()*10000000,
+			Kp:         rand.Float64() * 2.0,
+			Ki:         rand.Float64() * 0.5,
+			AntiWindup: 1.0 + rand.Float64()*9.0,
+		},
+		Acc: (rand.Float64() - 0.5) * 20.0,
+	})
+}
+
 func TestProperty_Determinism(t *testing.T) {
-	type inputsWithAcc struct {
-		realisticInputs
-		Acc float64
-	}
-	
-	f := func(inputs inputsWithAcc) bool {
+	f := func(inputs inputsWithAccForDeterminism) bool {
 		prevState := State{BaseFee: inputs.BaseFee, Acc: inputs.Acc}
 		params := Params{Kp: inputs.Kp, Ki: inputs.Ki, AntiWindupLimit: inputs.AntiWindup}
 		
@@ -146,21 +163,7 @@ func TestProperty_Determinism(t *testing.T) {
 		return result1.BaseFee == result2.BaseFee && result1.Acc == result2.Acc
 	}
 	
-	generate := func(rand *quick.Rand, size int) reflect.Value {
-		return reflect.ValueOf(inputsWithAcc{
-			realisticInputs: realisticInputs{
-				BaseFee:    rand.Float64() * 1000,
-				GasUsed:    rand.Float64() * 20000000,
-				GasTarget:  10000000 + rand.Float64()*10000000,
-				Kp:         rand.Float64() * 2.0,
-				Ki:         rand.Float64() * 0.5,
-				AntiWindup: 1.0 + rand.Float64()*9.0,
-			},
-			Acc: (rand.Float64() - 0.5) * 20.0,
-		})
-	}
-	
-	if err := quick.Check(f, &quick.Config{MaxCount: 10000, Values: generate}); err != nil {
+	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
 		t.Errorf("Invariant violated: %v", err)
 	}
 }
