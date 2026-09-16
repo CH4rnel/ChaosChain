@@ -160,7 +160,7 @@ func (r baseInputs) Generate(rand *rand.Rand, size int) reflect.Value {
 // If the failure rate is 0, there is no additional penalty.
 func TestProperty_ZeroFaultyShare(t *testing.T) {
 	f := func(inputs baseInputs) bool {
-		params := Params{BaseSlash: inputs.BaseSlash, Kappa: inputs.Kappa}
+		params := Params(inputs) // fix: direct type casting (The crazy S1016 Golang rule)
 		result, err := CalculateSlashFraction(0.0, params)
 		if err != nil {
 			return true
