@@ -1,9 +1,9 @@
-// x/feemarket/keeper/keeper.go
 package keeper
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -77,7 +77,7 @@ func NewKeeper(cdc codec.BinaryCodec, storeService storetypes.KVStoreService) Ke
 
 	schema, err := sb.Build()
 	if err != nil {
-		panic(err) // Fatal error initializing storage schema
+		panic(err)
 	}
 	k.Schema = schema
 	return k
@@ -87,7 +87,8 @@ func NewKeeper(cdc codec.BinaryCodec, storeService storetypes.KVStoreService) Ke
 func (k Keeper) GetState(ctx context.Context) (feemarket.State, error) {
 	state, err := k.State.Get(ctx)
 	if err != nil {
-		if err == collections.ErrNotFound {
+
+		if errors.Is(err, collections.ErrNotFound) {
 			return feemarket.State{BaseFee: 10.0, Acc: 0.0}, nil
 		}
 		return feemarket.State{}, err
@@ -104,7 +105,7 @@ func (k Keeper) SetState(ctx context.Context, state feemarket.State) error {
 func (k Keeper) GetParams(ctx context.Context) (feemarket.Params, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
-		if err == collections.ErrNotFound {
+		if errors.Is(err, collections.ErrNotFound) {
 			return feemarket.Params{Kp: 0.1, Ki: 0.01, AntiWindupLimit: 10.0}, nil
 		}
 		return feemarket.Params{}, err

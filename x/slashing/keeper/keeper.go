@@ -1,9 +1,9 @@
-// x/slashing/keeper/keeper.go
 package keeper
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -81,8 +81,8 @@ func NewKeeper(cdc codec.BinaryCodec, storeService storetypes.KVStoreService) Ke
 func (k Keeper) GetParams(ctx context.Context) (slashing.Params, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
-		if err == collections.ErrNotFound {
-			// Default values ​​for the MVP
+		
+		if errors.Is(err, collections.ErrNotFound) {
 			return slashing.Params{BaseSlash: 0.01, Kappa: 2.0}, nil
 		}
 		return slashing.Params{}, err
@@ -96,7 +96,6 @@ func (k Keeper) SetParams(ctx context.Context, params slashing.Params) error {
 }
 
 // Slash calculates the penalty fraction based on the faulty share and current params.
-// This delegates to the pure domain logic in pkg/slashing.
 func (k Keeper) Slash(ctx context.Context, faultyShare float64) (float64, error) {
 	params, err := k.GetParams(ctx)
 	if err != nil {
