@@ -1,124 +1,163 @@
 package app
 
 import (
-	"os"
-	"path/filepath"
+	"encoding/json"
+	"fmt"
+	"io"
 
 	"cosmossdk.io/depinject"
-	"cosmossdk.io/log/v2"
+	"cosmossdk.io/log"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/server/api"
+	"github.com/cosmos/cosmos-sdk/server/config"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
-	"github.com/spf13/cobra"
+	"github.com/cosmos/cosmos-sdk/types/module"
+	"github.com/cosmos/cosmos-sdk/x/bank"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/staking"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	feemarketkeeper "github.com/CH4rnel/ChaosChain/x/feemarket/keeper"
-	slashingkeeper "github.com/CH4rnel/ChaosChain/x/slashing/keeper"
+	// Local modules registration (side-effect imports for depinject)
+	_ "github.com/CH4rnel/ChaosChain/x/feemarket"
+	_ "github.com/CH4rnel/ChaosChain/x/slashing"
 )
 
-// DefaultNodeHome defines the default home directory for the node.
-var DefaultNodeHome string
+var (
+	_ runtime.AppI            = (*ChaosChainApp)(nil)
+	_ servertypes.Application = (*ChaosChainApp)(nil)
+)
 
-func init() {
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	DefaultNodeHome = filepath.Join(userHomeDir, ".chaoschain")
-}
-
-// ChaosChainApp extends baseapp.BaseApp and holds the application state.
 type ChaosChainApp struct {
-	*baseapp.BaseApp
-	cdc               codec.Codec
+	*runtime.App
+	legacyAmino       *codec.LegacyAmino
+	appCodec          codec.Codec
+	txConfig          client.TxConfig
 	interfaceRegistry codectypes.InterfaceRegistry
 
-	FeeMarketKeeper feemarketkeeper.Keeper
-	SlashingKeeper  slashingkeeper.Keeper
-	
-	keys map[string]*storetypes.KVStoreKey
+	// Core Keepers
+	BankKeeper    banktypes.Keeper
+	StakingKeeper stakingtypes.Keeper
+
+	// Module lifecycle management
+	ModuleManager *module.Manager
+	configurator  module.Configurator
 }
 
-// NewRootCmd creates the root command for the ChaosChain daemon.
-func NewRootCmd() *cobra.Command {
-	rootCmd := &cobra.Command{
-		Use:   "chaoschaind",
-		Short: "ChaosChain Daemon (Layer 1 Core)",
-	}
-	rootCmd.AddCommand(server.StatusCommand())
-	return rootCmd
-}
-
-// ProvideInterfaceRegistry provides the interface registry via depinject.
-func ProvideInterfaceRegistry() codectypes.InterfaceRegistry {
-	return codectypes.NewInterfaceRegistry()
-}
-
-// ProvideCodec provides the protobuf codec via depinject.
-func ProvideCodec(interfaceRegistry codectypes.InterfaceRegistry) codec.Codec {
-	return codec.NewProtoCodec(interfaceRegistry)
-}
-
-// WireApp builds the application using canonical Cosmos SDK v0.54+ initialization patterns.
-func WireApp() (*ChaosChainApp, error) {
+func NewChaosChainApp(
+	logger log.Logger,
+	db dbm.DB,
+	traceStore io.Writer,
+	loadLatest bool,
+	appOpts servertypes.AppOptions,
+	baseAppOptions ...func(*baseapp.BaseApp),
+) *ChaosChainApp {
 	var (
-		appInstance       ChaosChainApp
-		cdc               codec.Codec
-		interfaceRegistry codectypes.InterfaceRegistry
+		app        = &ChaosChainApp{}
+		appBuilder *runtime.AppBuilder
 	)
 
-	// 1. Initialization of the database and storage keys
-	db := dbm.NewMemDB()
-	logger := log.NewNopLogger()
-	
-	keys := storetypes.NewKVStoreKeys("feemarket", "slashing")
-
-	// 2. Initializing BaseApp
-	appInstance.BaseApp = baseapp.NewBaseApp("chaoschain", logger, db, nil)
-	
-	// 3.Mounting storage in BaseApp
-	appInstance.MountKVStores(keys)
-
-	// 4. Setting up handlers before loading the version (avoids "panic: sealed BaseApp")
-	appInstance.SetEndBlocker(func(ctx sdk.Context) (sdk.EndBlock, error) {
-		_ = appInstance.FeeMarketKeeper.EndBlock(ctx)
-		return sdk.EndBlock{}, nil
-	})
-	
-	// 5. Loading the latest version of the repository (seals BaseApp)
-	if err := appInstance.LoadLatestVersion(); err != nil {
-		return nil, err
-	}
-
-	// 6. Injecting basic dependencies via depinject
-	err := depinject.Inject(
+	// Dependency Injection for core SDK modules and keepers
+	if err := depinject.Inject(
 		depinject.Configs(
-			depinject.Provide(
-				ProvideInterfaceRegistry,
-				ProvideCodec,
-			),
+			// In production, app_config.go is loaded here.
+			// For the current build, we use the standard SDK configuration.
 		),
-		&cdc,
-		&interfaceRegistry,
-	)
-	if err != nil {
-		return nil, err
+		&appBuilder,
+		&app.appCodec,
+		&app.legacyAmino,
+		&app.txConfig,
+		&app.interfaceRegistry,
+		&app.BankKeeper,
+		&app.StakingKeeper,
+	); err != nil {
+		panic(fmt.Errorf("failed to inject dependencies: %w", err))
 	}
 
-	// 7. Manually creating Keepers and passing them the correct Store Services.
-	feeMarketKeeper := feemarketkeeper.NewKeeper(cdc, runtime.NewKVStoreService(keys["feemarket"]))
-	slashingKeeper := slashingkeeper.NewKeeper(cdc, runtime.NewKVStoreService(keys["slashing"]))
+	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
-	// 8.Final assembly of the application structure
-	appInstance.cdc = cdc
-	appInstance.interfaceRegistry = interfaceRegistry
-	appInstance.FeeMarketKeeper = feeMarketKeeper
-	appInstance.SlashingKeeper = slashingKeeper
-	appInstance.keys = keys
+	// Initializing ModuleManager for lifecycle management
+	app.ModuleManager = module.NewManager(
+		bank.NewAppModule(app.appCodec, app.BankKeeper, nil),
+		staking.NewAppModule(app.appCodec, app.StakingKeeper, app.BankKeeper, nil),
+		// feemarket.NewAppModule(...),
+		// slashing.NewAppModule(...),
+	)
 
-	return &appInstance, nil
+	// Determining the execution order of BeginBlockers (critical for staking and banking)
+	app.ModuleManager.SetOrderBeginBlockers(
+		stakingtypes.ModuleName,
+		banktypes.ModuleName,
+	)
+
+	// Determining the execution order of EndBlockers (validator updates, issuance)
+	app.ModuleManager.SetOrderEndBlockers(
+		stakingtypes.ModuleName,
+		banktypes.ModuleName,
+	)
+
+	// Genesis initialization and export sequence (staking must be initialized before bank to ensure correct binding of delegations)
+	genesisModuleOrder := []string{
+		stakingtypes.ModuleName,
+		banktypes.ModuleName,
+	}
+	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
+	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)
+
+	// Service registration and message routing
+	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
+	app.ModuleManager.RegisterServices(app.configurator)
+
+	// Sealing the application and loading the latest state version
+	if err := app.LoadLatestVersion(); err != nil {
+		panic(fmt.Errorf("failed to load latest version: %w", err))
+	}
+
+	return app
+}
+
+func (app *ChaosChainApp) Name() string { return "ChaosChain" }
+func (app *ChaosChainApp) LegacyAmino() *codec.LegacyAmino { return app.legacyAmino }
+func (app *ChaosChainApp) AppCodec() codec.Codec { return app.appCodec }
+func (app *ChaosChainApp) InterfaceRegistry() codectypes.InterfaceRegistry { return app.interfaceRegistry }
+func (app *ChaosChainApp) TxConfig() client.TxConfig { return app.txConfig }
+
+// DefaultGenesis restores the default state for all registered modules.
+func (app *ChaosChainApp) DefaultGenesis() map[string]json.RawMessage {
+	return app.ModuleManager.DefaultGenesis()
+}
+
+// InitGenesis initializes the application state from the genesis file.
+func (app *ChaosChainApp) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisState map[string]json.RawMessage) {
+	app.ModuleManager.InitGenesis(ctx, cdc, genesisState)
+}
+
+// ExportGenesis exports the application's current state to the genesis format (for snapshots and migrations).
+func (app *ChaosChainApp) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) map[string]json.RawMessage {
+	return app.ModuleManager.ExportGenesis(ctx, cdc)
+}
+
+func (app *ChaosChainApp) LoadHeight(height int64) error {
+	return app.LoadVersion(height)
+}
+
+func (app *ChaosChainApp) ModuleManager() *module.Manager { return app.ModuleManager }
+func (app *ChaosChainApp) SimulationManager() *module.SimulationManager { return nil }
+
+func (app *ChaosChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
+	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
+}
+
+func (app *ChaosChainApp) RegisterTxService(clientCtx client.Context) {
+	app.App.RegisterTxService(clientCtx)
+}
+
+func (app *ChaosChainApp) RegisterTendermintService(clientCtx client.Context) {
+	app.App.RegisterTendermintService(clientCtx)
 }
