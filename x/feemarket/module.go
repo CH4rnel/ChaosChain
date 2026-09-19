@@ -1,43 +1,76 @@
-// x/feemarket/module.go
+// File: x/feemarket/module.go
 package feemarket
 
 import (
-	"context"
+	"encoding/json"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/CH4rnel/ChaosChain/x/feemarket/keeper"
+	"cosmossdk.io/core/store"
+	"cosmossdk.io/depinject"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
 var (
-	_ appmodule.AppModule     = AppModule{}
-	_ appmodule.HasEndBlocker = AppModule{}
+	_ module.AppModuleBasic = AppModule{}
+	_ appmodule.AppModule   = AppModule{}
 )
 
-// AppModule implements the appmodule.AppModule interface for the feemarket module.
 type AppModule struct {
 	cdc    codec.Codec
-	keeper keeper.Keeper
+	keeper *Keeper
 }
 
-// NewAppModule creates a new AppModule object.
-func NewAppModule(cdc codec.Codec, keeper keeper.Keeper) AppModule {
-	return AppModule{
-		cdc:    cdc,
-		keeper: keeper,
-	}
+type Keeper struct {
+	store store.KVStoreService
 }
 
-// IsOnePerModuleType implements the depinject.OnePerModuleType interface.
+func NewKeeper(storeService store.KVStoreService) *Keeper {
+	return &Keeper{store: storeService}
+}
+
+func (k *Keeper) InitGenesis(ctx sdk.Context, data json.RawMessage) {}
+func (k *Keeper) ExportGenesis(ctx sdk.Context) json.RawMessage { return json.RawMessage("{}") }
+
+func NewAppModule(cdc codec.Codec, keeper *Keeper) AppModule {
+	return AppModule{cdc: cdc, keeper: keeper}
+}
+
 func (AppModule) IsOnePerModuleType() {}
+func (AppModule) IsAppModule()        {}
 
-// IsAppModule implements the appmodule.AppModule interface.
-func (AppModule) IsAppModule() {}
+func (m AppModule) RegisterInterfaces(registry codectypes.InterfaceRegistry) {}
+func (m AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux interface{}) {}
+func (m AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) {
+	m.keeper.InitGenesis(ctx, data)
+}
+func (m AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {
+	return m.keeper.ExportGenesis(ctx)
+}
+func (m AppModule) ConsensusVersion() uint64 { return 1 }
 
-// Name returns the module's name.
-func (AppModule) Name() string { return "feemarket" }
+func init() {
+	appmodule.Register(&struct{}{},
+		appmodule.Provide(ProvideModule),
+	)
+}
 
-// EndBlock executes the ABCI EndBlock logic for the feemarket module.
-func (am AppModule) EndBlock(ctx context.Context) error {
-	return am.keeper.EndBlock(ctx)
+type ModuleInputs struct {
+	depinject.In
+	StoreService store.KVStoreService
+}
+
+type ModuleOutputs struct {
+	depinject.Out
+	Keeper    *Keeper
+	AppModule appmodule.AppModule
+}
+
+func ProvideModule(in ModuleInputs) ModuleOutputs {
+	k := NewKeeper(in.StoreService)
+	m := NewAppModule(nil, k)
+	return ModuleOutputs{Keeper: k, AppModule: m}
 }
