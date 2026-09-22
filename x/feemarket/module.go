@@ -1,76 +1,65 @@
-// File: x/feemarket/module.go
 package feemarket
 
 import (
+	"context"
 	"encoding/json"
 
 	"cosmossdk.io/core/appmodule"
-	"cosmossdk.io/core/store"
-	"cosmossdk.io/depinject"
+	"github.com/CH4rnel/ChaosChain/x/feemarket/keeper"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/spf13/cobra"
 )
+
+const ModuleName = "feemarket"
 
 var (
 	_ module.AppModuleBasic = AppModule{}
+	_ module.AppModule      = AppModule{}
 	_ appmodule.AppModule   = AppModule{}
 )
 
 type AppModule struct {
 	cdc    codec.Codec
-	keeper *Keeper
+	keeper keeper.Keeper
 }
 
-type Keeper struct {
-	store store.KVStoreService
-}
-
-func NewKeeper(storeService store.KVStoreService) *Keeper {
-	return &Keeper{store: storeService}
-}
-
-func (k *Keeper) InitGenesis(ctx sdk.Context, data json.RawMessage) {}
-func (k *Keeper) ExportGenesis(ctx sdk.Context) json.RawMessage { return json.RawMessage("{}") }
-
-func NewAppModule(cdc codec.Codec, keeper *Keeper) AppModule {
-	return AppModule{cdc: cdc, keeper: keeper}
-}
-
+func (AppModule) Name() string        { return ModuleName }
 func (AppModule) IsOnePerModuleType() {}
 func (AppModule) IsAppModule()        {}
 
-func (m AppModule) RegisterInterfaces(registry codectypes.InterfaceRegistry) {}
-func (m AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux interface{}) {}
+func (AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	return json.RawMessage(`{}`)
+}
+
+func (AppModule) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncodingConfig, bz json.RawMessage) error {
+	return nil
+}
+
+func (AppModule) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino)                           {}
+func (AppModule) RegisterInterfaces(registry codectypes.InterfaceRegistry)                  {}
+func (AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {}
+func (AppModule) GetTxCmd() *cobra.Command                                                  { return nil }
+func (AppModule) GetQueryCmd() *cobra.Command                                               { return nil }
+
+func NewAppModule(cdc codec.Codec, keeper keeper.Keeper) AppModule {
+	return AppModule{cdc: cdc, keeper: keeper}
+}
+
+func (m AppModule) RegisterInvariants(sdk.InvariantRegistry) {}
+func (m AppModule) RegisterServices(cfg module.Configurator) {}
+
 func (m AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) {
-	m.keeper.InitGenesis(ctx, data)
 }
+
 func (m AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {
-	return m.keeper.ExportGenesis(ctx)
+	return json.RawMessage(`{}`)
 }
+
 func (m AppModule) ConsensusVersion() uint64 { return 1 }
 
-func init() {
-	appmodule.Register(&struct{}{},
-		appmodule.Provide(ProvideModule),
-	)
-}
-
-type ModuleInputs struct {
-	depinject.In
-	StoreService store.KVStoreService
-}
-
-type ModuleOutputs struct {
-	depinject.Out
-	Keeper    *Keeper
-	AppModule appmodule.AppModule
-}
-
-func ProvideModule(in ModuleInputs) ModuleOutputs {
-	k := NewKeeper(in.StoreService)
-	m := NewAppModule(nil, k)
-	return ModuleOutputs{Keeper: k, AppModule: m}
-}
+func (m AppModule) EndBlock(ctx context.Context) error { return m.keeper.EndBlock(ctx) }
