@@ -52,3 +52,17 @@ func TestKeeperRejectsInvalidPenaltyConfiguration(t *testing.T) {
 
 	require.ErrorContains(t, k.SetParams(ctx, params), "validate slashing parameters")
 }
+
+func TestKeeperRejectsInvalidStoredPenaltyConfiguration(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_slashing"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	params := domain.DefaultParams()
+	params.Kappa = -1
+	require.NoError(t, k.Params.Set(ctx, params))
+
+	_, err := k.GetParams(ctx)
+	require.ErrorContains(t, err, "validate stored slashing parameters")
+}

@@ -87,6 +87,9 @@ func (k Keeper) GetParams(ctx context.Context) (slashing.Params, error) {
 		}
 		return slashing.Params{}, err
 	}
+	if err := slashing.ValidateParams(params); err != nil {
+		return slashing.Params{}, fmt.Errorf("validate stored slashing parameters: %w", err)
+	}
 	return params, nil
 }
 
