@@ -21,6 +21,11 @@ type Params struct {
 	Kp              float64 `json:"kp"`
 	Ki              float64 `json:"ki"`
 	AntiWindupLimit float64 `json:"anti_windup_limit"`
+	GasTarget       float64 `json:"gas_target"`
+}
+
+func DefaultParams() Params {
+	return Params{Kp: 0.1, Ki: 0.01, AntiWindupLimit: 10, GasTarget: 10_000_000}
 }
 
 // State represents the current fee market state.
@@ -30,9 +35,9 @@ type State struct {
 }
 
 // Next calculates the next block's fee market state based on the PI-regulator.
-func Next(prev State, gasUsed, gasTarget float64, p Params) (State, error) {
+func Next(prev State, gasUsed float64, p Params) (State, error) {
 	// 1. Basic validation (sign and zero checks)
-	if gasTarget <= 0 {
+	if p.GasTarget <= 0 {
 		return State{}, errors.New("gasTarget must be strictly greater than 0")
 	}
 	if prev.BaseFee <= 0 {
@@ -49,7 +54,7 @@ func Next(prev State, gasUsed, gasTarget float64, p Params) (State, error) {
 	if gasUsed > MaxGasUsed {
 		return State{}, errors.New("gasUsed exceeds maximum reasonable value")
 	}
-	if gasTarget > MaxGasTarget {
+	if p.GasTarget > MaxGasTarget {
 		return State{}, errors.New("gasTarget exceeds maximum reasonable value")
 	}
 	if p.Kp > MaxKp || p.Kp < 0 {
@@ -63,7 +68,7 @@ func Next(prev State, gasUsed, gasTarget float64, p Params) (State, error) {
 	}
 
 	// 3. Calculate regulation error
-	e := (gasUsed / gasTarget) - 1.0
+	e := (gasUsed / p.GasTarget) - 1.0
 
 	// 4. Update accumulated error
 	acc := prev.Acc + e
@@ -77,14 +82,14 @@ func Next(prev State, gasUsed, gasTarget float64, p Params) (State, error) {
 
 	// 6. Calculate next base fee using exponential PI control
 	exponent := p.Kp*e + p.Ki*acc
-	
+
 	// exp() overflow protection
 	if exponent > 700 { // exp(700) ≈ 1e+304, close to MaxFloat64
 		exponent = 700
 	} else if exponent < -700 {
 		exponent = -700
 	}
-	
+
 	baseFeeNext := prev.BaseFee * math.Exp(exponent)
 
 	// 7. Final safety check: ensure result is finite and positive

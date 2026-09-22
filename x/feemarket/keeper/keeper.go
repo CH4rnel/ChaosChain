@@ -106,7 +106,7 @@ func (k Keeper) GetParams(ctx context.Context) (feemarket.Params, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
-			return feemarket.Params{Kp: 0.1, Ki: 0.01, AntiWindupLimit: 10.0}, nil
+			return feemarket.DefaultParams(), nil
 		}
 		return feemarket.Params{}, err
 	}

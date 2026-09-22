@@ -28,11 +28,8 @@ func (k Keeper) EndBlock(ctx context.Context) error {
 		return err
 	}
 
-	// Target gas is hardcoded for MVP, but in a real scenario it would be params.TargetGas
-	gasTarget := 10000000.0
-
 	// 3. Delegate to pure domain logic
-	nextState, err := feemarket.Next(currentState, gasUsed, gasTarget, params)
+	nextState, err := feemarket.Next(currentState, gasUsed, params)
 	if err != nil {
 		sdkCtx.Logger().Error("failed to calculate next fee market state", "error", err)
 		// We do not interrupt the block due to a commission calculation error, but we log it.
