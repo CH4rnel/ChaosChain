@@ -14,7 +14,7 @@ func (k Keeper) EndBlock(ctx context.Context) error {
 
 	// 1. Gather block data
 	gasUsed := float64(sdkCtx.GasMeter().GasConsumed())
-	
+
 	// 2. Fetch current state and params from KVStore
 	params, err := k.GetParams(ctx)
 	if err != nil {
@@ -29,14 +29,14 @@ func (k Keeper) EndBlock(ctx context.Context) error {
 	}
 
 	// Target gas is hardcoded for MVP, but in a real scenario it would be params.TargetGas
-	gasTarget := 10000000.0 
+	gasTarget := 10000000.0
 
 	// 3. Delegate to pure domain logic
 	nextState, err := feemarket.Next(currentState, gasUsed, gasTarget, params)
 	if err != nil {
 		sdkCtx.Logger().Error("failed to calculate next fee market state", "error", err)
 		// We do not interrupt the block due to a commission calculation error, but we log it.
-		return nil 
+		return nil
 	}
 
 	// 4. Persist new state
@@ -45,8 +45,8 @@ func (k Keeper) EndBlock(ctx context.Context) error {
 		return err
 	}
 
-	sdkCtx.Logger().Info("fee market state updated", 
-		"new_base_fee", nextState.BaseFee, 
+	sdkCtx.Logger().Info("fee market state updated",
+		"new_base_fee", nextState.BaseFee,
 		"new_acc", nextState.Acc,
 		"gas_used", gasUsed,
 	)
