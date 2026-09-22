@@ -98,6 +98,9 @@ func (k Keeper) GetState(ctx context.Context) (feemarket.State, error) {
 
 // SetState saves the fee market state to the store.
 func (k Keeper) SetState(ctx context.Context, state feemarket.State) error {
+	if err := feemarket.ValidateState(state); err != nil {
+		return fmt.Errorf("validate fee market state: %w", err)
+	}
 	return k.State.Set(ctx, state)
 }
 
@@ -115,5 +118,8 @@ func (k Keeper) GetParams(ctx context.Context) (feemarket.Params, error) {
 
 // SetParams saves the fee market parameters.
 func (k Keeper) SetParams(ctx context.Context, params feemarket.Params) error {
+	if err := feemarket.ValidateParams(params); err != nil {
+		return fmt.Errorf("validate fee market parameters: %w", err)
+	}
 	return k.Params.Set(ctx, params)
 }

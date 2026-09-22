@@ -43,3 +43,16 @@ func TestValidateGenesisRejectsInvalidControllerConfiguration(t *testing.T) {
 	err := (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis))
 	require.ErrorContains(t, err, "gasTarget out of valid range")
 }
+
+func TestKeeperRejectsInvalidControllerData(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+
+	params := domain.DefaultParams()
+	params.GasTarget = 0
+	require.ErrorContains(t, k.SetParams(ctx, params), "validate fee market parameters")
+	require.ErrorContains(t, k.SetState(ctx, domain.State{}), "validate fee market state")
+}
