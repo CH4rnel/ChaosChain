@@ -155,7 +155,9 @@ func (app *ChaosChainApp) LoadHeight(height int64) error                { return
 func (app *ChaosChainApp) SimulationManager() *module.SimulationManager { return nil }
 
 func (app *ChaosChainApp) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, state map[string]json.RawMessage) {
-	app.ModuleManager.InitGenesis(ctx, cdc, state)
+	if _, err := app.ModuleManager.InitGenesis(ctx, cdc, state); err != nil {
+		panic(fmt.Errorf("initialize genesis: %w", err))
+	}
 }
 
 func (app *ChaosChainApp) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) map[string]json.RawMessage {

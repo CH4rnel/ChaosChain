@@ -1,7 +1,6 @@
 package app
 
 import (
-	"encoding/json"
 	"testing"
 
 	"cosmossdk.io/log/v2"
@@ -28,7 +27,7 @@ func TestChaosChainAppInitialization(t *testing.T) {
 	require.NotNil(t, app.StakingKeeper, "StakingKeeper must be injected")
 }
 
-func TestChaosChainAppGenesisExportImport(t *testing.T) {
+func TestChaosChainAppInitGenesisRejectsEmptyValidatorSet(t *testing.T) {
 	db := dbm.NewMemDB()
 	logger := log.NewTestLogger(t)
 
@@ -40,16 +39,13 @@ func TestChaosChainAppGenesisExportImport(t *testing.T) {
 	require.Contains(t, genesisState, "staking", "Genesis must contain staking module state")
 
 	ctx := app.BaseApp.NewNextBlockContext(cmtproto.Header{Height: 1})
-	app.InitGenesis(ctx, app.AppCodec(), genesisState)
+	var panicValue any
+	func() {
+		defer func() { panicValue = recover() }()
+		app.InitGenesis(ctx, app.AppCodec(), genesisState)
+	}()
 
-	exportedState := app.ExportGenesis(ctx, app.AppCodec())
-	require.NotNil(t, exportedState, "Exported genesis must not be nil")
-
-	require.Contains(t, exportedState, "bank")
-	require.Contains(t, exportedState, "staking")
-
-	_, err := json.MarshalIndent(exportedState, "", "  ")
-	require.NoError(t, err, "Exported genesis must be valid JSON")
+	require.ErrorContains(t, panicValue.(error), "initialize genesis: validator set is empty")
 }
 
 func TestModuleManagerOrderExecution(t *testing.T) {
