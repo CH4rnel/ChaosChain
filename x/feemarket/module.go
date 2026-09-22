@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 
 	"cosmossdk.io/core/appmodule"
 	domain "github.com/CH4rnel/ChaosChain/pkg/feemarket"
@@ -64,11 +63,11 @@ func (AppModule) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncodingCo
 	if err := json.Unmarshal(bz, &genesis); err != nil {
 		return fmt.Errorf("decode fee market genesis: %w", err)
 	}
-	if math.IsNaN(genesis.State.Acc) || math.IsInf(genesis.State.Acc, 0) {
-		return fmt.Errorf("fee market accumulator must be finite")
+	if err := domain.ValidateParams(genesis.Params); err != nil {
+		return fmt.Errorf("validate fee market genesis parameters: %w", err)
 	}
-	if _, err := domain.Next(genesis.State, genesis.Params.GasTarget, genesis.Params); err != nil {
-		return fmt.Errorf("validate fee market genesis: %w", err)
+	if err := domain.ValidateState(genesis.State); err != nil {
+		return fmt.Errorf("validate fee market genesis state: %w", err)
 	}
 	return nil
 }

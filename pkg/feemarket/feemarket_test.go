@@ -86,6 +86,29 @@ func TestDefaultParamsDefineOperationalGasTarget(t *testing.T) {
 	}
 }
 
+func TestNextRejectsNonFiniteInputs(t *testing.T) {
+	tests := []struct {
+		name    string
+		state   State
+		gasUsed float64
+		params  Params
+	}{
+		{"nan base fee", State{BaseFee: math.NaN()}, 1, DefaultParams()},
+		{"infinite accumulator", State{BaseFee: 10, Acc: math.Inf(1)}, 1, DefaultParams()},
+		{"nan gas used", State{BaseFee: 10}, math.NaN(), DefaultParams()},
+		{"infinite gain", State{BaseFee: 10}, 1, Params{Kp: math.Inf(1), GasTarget: 10}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Next(tt.state, tt.gasUsed, tt.params)
+			if err == nil {
+				t.Fatal("expected non-finite input to be rejected")
+			}
+		})
+	}
+}
+
 // TestNext_AntiWindupRegression is a regression test ensuring that
 // prolonged overload does not cause unbounded accumulator growth,
 // which would prevent the fee from correcting downwards when load drops.

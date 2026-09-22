@@ -28,6 +28,49 @@ func DefaultParams() Params {
 	return Params{Kp: 0.1, Ki: 0.01, AntiWindupLimit: 10, GasTarget: 10_000_000}
 }
 
+func ValidateParams(p Params) error {
+	values := []struct {
+		name  string
+		value float64
+	}{
+		{"kp", p.Kp},
+		{"ki", p.Ki},
+		{"antiWindupLimit", p.AntiWindupLimit},
+		{"gasTarget", p.GasTarget},
+	}
+	for _, item := range values {
+		if math.IsNaN(item.value) || math.IsInf(item.value, 0) {
+			return errors.New(item.name + " must be finite")
+		}
+	}
+	if p.GasTarget <= 0 || p.GasTarget > MaxGasTarget {
+		return errors.New("gasTarget out of valid range (0, MaxGasTarget]")
+	}
+	if p.Kp < 0 || p.Kp > MaxKp {
+		return errors.New("kp out of valid range [0, MaxKp]")
+	}
+	if p.Ki < 0 || p.Ki > MaxKi {
+		return errors.New("ki out of valid range [0, MaxKi]")
+	}
+	if p.AntiWindupLimit < 0 || p.AntiWindupLimit > MaxAntiWindup {
+		return errors.New("antiWindupLimit out of valid range [0, MaxAntiWindup]")
+	}
+	return nil
+}
+
+func ValidateState(state State) error {
+	if math.IsNaN(state.BaseFee) || math.IsInf(state.BaseFee, 0) {
+		return errors.New("baseFee must be finite")
+	}
+	if state.BaseFee <= 0 || state.BaseFee > MaxBaseFee {
+		return errors.New("baseFee out of valid range (0, MaxBaseFee]")
+	}
+	if math.IsNaN(state.Acc) || math.IsInf(state.Acc, 0) {
+		return errors.New("accumulator must be finite")
+	}
+	return nil
+}
+
 // State represents the current fee market state.
 type State struct {
 	BaseFee float64 `json:"base_fee"`
@@ -36,35 +79,17 @@ type State struct {
 
 // Next calculates the next block's fee market state based on the PI-regulator.
 func Next(prev State, gasUsed float64, p Params) (State, error) {
-	// 1. Basic validation (sign and zero checks)
-	if p.GasTarget <= 0 {
-		return State{}, errors.New("gasTarget must be strictly greater than 0")
+	if err := ValidateParams(p); err != nil {
+		return State{}, err
 	}
-	if prev.BaseFee <= 0 {
-		return State{}, errors.New("baseFee must be strictly greater than 0")
+	if err := ValidateState(prev); err != nil {
+		return State{}, err
 	}
-	if gasUsed < 0 {
-		return State{}, errors.New("gasUsed cannot be negative")
+	if math.IsNaN(gasUsed) || math.IsInf(gasUsed, 0) {
+		return State{}, errors.New("gasUsed must be finite")
 	}
-
-	// 2. Overflow protection
-	if prev.BaseFee > MaxBaseFee {
-		return State{}, errors.New("baseFee exceeds maximum reasonable value")
-	}
-	if gasUsed > MaxGasUsed {
-		return State{}, errors.New("gasUsed exceeds maximum reasonable value")
-	}
-	if p.GasTarget > MaxGasTarget {
-		return State{}, errors.New("gasTarget exceeds maximum reasonable value")
-	}
-	if p.Kp > MaxKp || p.Kp < 0 {
-		return State{}, errors.New("kp out of valid range [0, MaxKp]") // fix: lowercase letter (The crazy ST1005 Golang rule)
-	}
-	if p.Ki > MaxKi || p.Ki < 0 {
-		return State{}, errors.New("ki out of valid range [0, MaxKi]") // fix: lowercase letter (The crazy ST1005 Golang rule)
-	}
-	if p.AntiWindupLimit > MaxAntiWindup || p.AntiWindupLimit < 0 {
-		return State{}, errors.New("antiWindupLimit out of valid range [0, MaxAntiWindup]")
+	if gasUsed < 0 || gasUsed > MaxGasUsed {
+		return State{}, errors.New("gasUsed out of valid range [0, MaxGasUsed]")
 	}
 
 	// 3. Calculate regulation error

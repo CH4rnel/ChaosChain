@@ -41,5 +41,5 @@ func TestValidateGenesisRejectsInvalidControllerConfiguration(t *testing.T) {
 	genesis.Params.GasTarget = 0
 
 	err := (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis))
-	require.ErrorContains(t, err, "gasTarget must be strictly greater than 0")
+	require.ErrorContains(t, err, "gasTarget out of valid range")
 }
