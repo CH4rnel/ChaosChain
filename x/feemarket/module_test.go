@@ -56,3 +56,15 @@ func TestKeeperRejectsInvalidControllerData(t *testing.T) {
 	require.ErrorContains(t, k.SetParams(ctx, params), "validate fee market parameters")
 	require.ErrorContains(t, k.SetState(ctx, domain.State{}), "validate fee market state")
 }
+
+func TestEndBlockPropagatesInvalidControllerState(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	require.NoError(t, k.Params.Set(ctx, domain.DefaultParams()))
+	require.NoError(t, k.State.Set(ctx, domain.State{}))
+
+	require.ErrorContains(t, k.EndBlock(ctx), "baseFee out of valid range")
+}

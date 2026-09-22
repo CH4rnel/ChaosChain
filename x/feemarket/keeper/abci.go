@@ -32,8 +32,7 @@ func (k Keeper) EndBlock(ctx context.Context) error {
 	nextState, err := feemarket.Next(currentState, gasUsed, params)
 	if err != nil {
 		sdkCtx.Logger().Error("failed to calculate next fee market state", "error", err)
-		// We do not interrupt the block due to a commission calculation error, but we log it.
-		return nil
+		return err
 	}
 
 	// 4. Persist new state
