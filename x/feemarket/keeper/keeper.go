@@ -93,6 +93,9 @@ func (k Keeper) GetState(ctx context.Context) (feemarket.State, error) {
 		}
 		return feemarket.State{}, err
 	}
+	if err := feemarket.ValidateState(state); err != nil {
+		return feemarket.State{}, fmt.Errorf("validate stored fee market state: %w", err)
+	}
 	return state, nil
 }
 
@@ -112,6 +115,9 @@ func (k Keeper) GetParams(ctx context.Context) (feemarket.Params, error) {
 			return feemarket.DefaultParams(), nil
 		}
 		return feemarket.Params{}, err
+	}
+	if err := feemarket.ValidateParams(params); err != nil {
+		return feemarket.Params{}, fmt.Errorf("validate stored fee market parameters: %w", err)
 	}
 	return params, nil
 }

@@ -57,6 +57,23 @@ func TestKeeperRejectsInvalidControllerData(t *testing.T) {
 	require.ErrorContains(t, k.SetState(ctx, domain.State{}), "validate fee market state")
 }
 
+func TestKeeperRejectsInvalidStoredControllerData(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	params := domain.DefaultParams()
+	params.GasTarget = 0
+	require.NoError(t, k.Params.Set(ctx, params))
+	require.NoError(t, k.State.Set(ctx, domain.State{}))
+
+	_, err := k.GetParams(ctx)
+	require.ErrorContains(t, err, "validate stored fee market parameters")
+	_, err = k.GetState(ctx)
+	require.ErrorContains(t, err, "validate stored fee market state")
+}
+
 func TestEndBlockPropagatesInvalidControllerState(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
