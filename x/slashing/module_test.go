@@ -40,3 +40,15 @@ func TestValidateGenesisRejectsInvalidPenaltyConfiguration(t *testing.T) {
 	err := (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis))
 	require.ErrorContains(t, err, "kappa must be in the range")
 }
+
+func TestKeeperRejectsInvalidPenaltyConfiguration(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_slashing"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	params := domain.DefaultParams()
+	params.Kappa = -1
+
+	require.ErrorContains(t, k.SetParams(ctx, params), "validate slashing parameters")
+}

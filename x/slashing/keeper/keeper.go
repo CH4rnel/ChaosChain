@@ -92,6 +92,9 @@ func (k Keeper) GetParams(ctx context.Context) (slashing.Params, error) {
 
 // SetParams saves the slashing parameters.
 func (k Keeper) SetParams(ctx context.Context, params slashing.Params) error {
+	if err := slashing.ValidateParams(params); err != nil {
+		return fmt.Errorf("validate slashing parameters: %w", err)
+	}
 	return k.Params.Set(ctx, params)
 }
 
