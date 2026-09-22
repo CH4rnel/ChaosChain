@@ -3,22 +3,21 @@ module github.com/CH4rnel/ChaosChain
 go 1.25.9
 
 require (
+	cosmossdk.io/api v1.0.0
 	cosmossdk.io/collections v1.4.0
 	cosmossdk.io/core v1.1.0
 	cosmossdk.io/depinject v1.2.1
 	cosmossdk.io/log/v2 v2.1.0
-	cosmossdk.io/store v1.1.2
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-sdk v0.54.0
 	github.com/cosmos/cosmos-sdk/store/v2 v2.0.0
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 )
 
 require (
-	cosmossdk.io/api v1.0.0 // indirect
 	cosmossdk.io/errors v1.1.0 // indirect
-	cosmossdk.io/log v1.5.1 // indirect
 	cosmossdk.io/math v1.5.3 // indirect
 	cosmossdk.io/schema v1.1.0 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
@@ -93,7 +92,6 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
