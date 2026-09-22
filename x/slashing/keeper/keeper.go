@@ -83,7 +83,7 @@ func (k Keeper) GetParams(ctx context.Context) (slashing.Params, error) {
 	if err != nil {
 
 		if errors.Is(err, collections.ErrNotFound) {
-			return slashing.Params{BaseSlash: 0.01, Kappa: 2.0}, nil
+			return slashing.DefaultParams(), nil
 		}
 		return slashing.Params{}, err
 	}

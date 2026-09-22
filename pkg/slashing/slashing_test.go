@@ -94,3 +94,31 @@ func TestCalculateSlashFraction_Errors(t *testing.T) {
 		})
 	}
 }
+
+func TestCalculateSlashFractionRejectsNonFiniteInputs(t *testing.T) {
+	tests := []struct {
+		name        string
+		faultyShare float64
+		params      Params
+	}{
+		{"nan faulty share", math.NaN(), DefaultParams()},
+		{"infinite faulty share", math.Inf(1), DefaultParams()},
+		{"nan base slash", 0.1, Params{BaseSlash: math.NaN(), Kappa: 1}},
+		{"infinite kappa", 0.1, Params{BaseSlash: 0.01, Kappa: math.Inf(1)}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := CalculateSlashFraction(tt.faultyShare, tt.params)
+			if err == nil {
+				t.Fatal("expected non-finite input to be rejected")
+			}
+		})
+	}
+}
+
+func TestDefaultParamsAreValid(t *testing.T) {
+	if err := ValidateParams(DefaultParams()); err != nil {
+		t.Fatalf("default parameters must be valid: %v", err)
+	}
+}

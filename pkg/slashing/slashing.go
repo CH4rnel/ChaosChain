@@ -18,39 +18,46 @@ type Params struct {
 	Kappa     float64 `json:"kappa"`
 }
 
+func DefaultParams() Params {
+	return Params{BaseSlash: 0.01, Kappa: 2}
+}
+
+func ValidateParams(p Params) error {
+	if math.IsNaN(p.BaseSlash) || math.IsInf(p.BaseSlash, 0) {
+		return errors.New("baseSlash must be finite")
+	}
+	if math.IsNaN(p.Kappa) || math.IsInf(p.Kappa, 0) {
+		return errors.New("kappa must be finite")
+	}
+	if p.BaseSlash < 0 || p.BaseSlash > MaxBaseSlash {
+		return errors.New("baseSlash must be in the range [0.0, 1.0]")
+	}
+	if p.Kappa < 0 || p.Kappa > MaxKappa {
+		return errors.New("kappa must be in the range [0.0, MaxKappa]")
+	}
+	return nil
+}
+
 // CalculateSlashFraction computes the slashing percentage.
 func CalculateSlashFraction(faultyShare float64, p Params) (float64, error) {
-	// 1. Basic validation
+	if err := ValidateParams(p); err != nil {
+		return 0, err
+	}
+	if math.IsNaN(faultyShare) || math.IsInf(faultyShare, 0) {
+		return 0, errors.New("faultyShare must be finite")
+	}
 	if faultyShare < 0.0 || faultyShare > 1.0 {
 		return 0.0, errors.New("faultyShare must be in the range [0.0, 1.0]")
 	}
-	if p.BaseSlash < 0.0 {
-		return 0.0, errors.New("baseSlash cannot be negative")
-	}
-	if p.Kappa < 0.0 {
-		return 0.0, errors.New("kappa cannot be negative")
-	}
 
-	// 2. Overflow protection
-	if p.BaseSlash > MaxBaseSlash {
-		return 0.0, errors.New("baseSlash exceeds maximum (1.0 = 100%)")
-	}
-	if p.Kappa > MaxKappa {
-		return 0.0, errors.New("kappa exceeds maximum reasonable value")
-	}
-
-	// 3. Calculate correlation penalty
 	correlationPenalty := p.Kappa * faultyShare * faultyShare
 
-	// 4. Calculate total slash fraction
 	slashFraction := p.BaseSlash + correlationPenalty
 
-	// 5. Clamp to maximum 1.0 (100%)
 	if slashFraction > 1.0 {
 		slashFraction = 1.0
 	}
 
-	// 6. Final safety check
 	if math.IsInf(slashFraction, 0) || math.IsNaN(slashFraction) {
 		return 0.0, errors.New("calculated slashFraction is not finite")
 	}

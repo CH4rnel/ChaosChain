@@ -7,7 +7,7 @@ import (
 	"testing/quick"
 )
 
-// realisticSlashingInputs implements the quick.Generator interface for generation. 
+// realisticSlashingInputs implements the quick.Generator interface for generation.
 // economically realistic slashing parameters.
 type realisticSlashingInputs struct {
 	BaseSlash   float64
@@ -32,10 +32,10 @@ func TestProperty_SlashFractionBounded(t *testing.T) {
 		if err != nil {
 			return true // Skip invalid input data.
 		}
-		
+
 		return result <= 1.0 && result >= 0.0
 	}
-	
+
 	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
 		t.Errorf("Invariant violated: %v", err)
 	}
@@ -50,10 +50,10 @@ func TestProperty_SlashAtLeastBase(t *testing.T) {
 		if err != nil {
 			return true
 		}
-		
+
 		return result >= inputs.BaseSlash
 	}
-	
+
 	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
 		t.Errorf("Invariant violated: %v", err)
 	}
@@ -83,18 +83,18 @@ func TestProperty_Monotonicity(t *testing.T) {
 		if inputs.FaultyShare >= inputs.FaultyShare2 {
 			return true
 		}
-		
+
 		params := Params{BaseSlash: inputs.BaseSlash, Kappa: inputs.Kappa}
 		result1, err1 := CalculateSlashFraction(inputs.FaultyShare, params)
 		result2, err2 := CalculateSlashFraction(inputs.FaultyShare2, params)
-		
+
 		if err1 != nil || err2 != nil {
 			return true
 		}
-		
+
 		return result2 >= result1
 	}
-	
+
 	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
 		t.Errorf("Invariant violated: %v", err)
 	}
@@ -108,36 +108,36 @@ func TestProperty_QuadraticGrowth(t *testing.T) {
 		if inputs.FaultyShare <= 0 || inputs.FaultyShare > 0.25 || inputs.Kappa <= 0 {
 			return true
 		}
-		
+
 		params := Params{BaseSlash: inputs.BaseSlash, Kappa: inputs.Kappa}
-		
+
 		// CRITICAL FIX: Calculate the "raw" result BEFORE applying clamp.
-		// If the doubled failure rate results in a value >= 1.0, it triggers. 
-		// protective limit (maximum 100% slashing). In this case, we skip 
+		// If the doubled failure rate results in a value >= 1.0, it triggers.
+		// protective limit (maximum 100% slashing). In this case, we skip
 		// iteration, since clamp intentionally suppresses further growth for the sake of safety.
 		rawResult2 := inputs.BaseSlash + inputs.Kappa*(2*inputs.FaultyShare)*(2*inputs.FaultyShare)
 		if rawResult2 >= 1.0 {
-			return true 
+			return true
 		}
-		
+
 		result1, err1 := CalculateSlashFraction(inputs.FaultyShare, params)
 		if err1 != nil {
 			return true
 		}
-		
+
 		result2, err2 := CalculateSlashFraction(2*inputs.FaultyShare, params)
 		if err2 != nil {
 			return true
 		}
-		
+
 		additionalPenalty1 := result1 - inputs.BaseSlash
 		additionalPenalty2 := result2 - inputs.BaseSlash
-		
-		// INVARIANT: If the protective clamp did not trigger, faulty_share is doubled. 
+
+		// INVARIANT: If the protective clamp did not trigger, faulty_share is doubled.
 		// it should more than double the additional penalty (due to the square).
 		return additionalPenalty2 > 2*additionalPenalty1
 	}
-	
+
 	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
 		t.Errorf("Invariant violated: %v", err)
 	}
@@ -165,10 +165,10 @@ func TestProperty_ZeroFaultyShare(t *testing.T) {
 		if err != nil {
 			return true
 		}
-		
+
 		return result == inputs.BaseSlash
 	}
-	
+
 	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
 		t.Errorf("Invariant violated: %v", err)
 	}
