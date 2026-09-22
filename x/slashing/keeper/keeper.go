@@ -81,7 +81,7 @@ func NewKeeper(cdc codec.BinaryCodec, storeService storetypes.KVStoreService) Ke
 func (k Keeper) GetParams(ctx context.Context) (slashing.Params, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
-		
+
 		if errors.Is(err, collections.ErrNotFound) {
 			return slashing.Params{BaseSlash: 0.01, Kappa: 2.0}, nil
 		}
