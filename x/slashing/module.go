@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
-	domain "github.com/CH4rnel/ChaosChain/pkg/slashing"
+	domain "github.com/CH4rnel/ChaosChain/pkg/penalty"
 	"github.com/CH4rnel/ChaosChain/x/slashing/keeper"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"

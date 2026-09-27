@@ -1,5 +1,5 @@
-// Package slashing implements the correlated slashing penalty logic
-package slashing
+// Package penalty implements correlated fault penalty calculations.
+package penalty
 
 import (
 	"errors"

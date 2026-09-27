@@ -1,5 +1,4 @@
-// pkg/slashing/slashing_test.go
-package slashing
+package penalty
 
 import (
 	"math"

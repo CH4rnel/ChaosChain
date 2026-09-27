@@ -12,7 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/stretchr/testify/require"
 
-	domain "github.com/CH4rnel/ChaosChain/pkg/slashing"
+	domain "github.com/CH4rnel/ChaosChain/pkg/penalty"
 	"github.com/CH4rnel/ChaosChain/x/slashing/keeper"
 )
 
@@ -50,7 +50,7 @@ func TestKeeperRejectsInvalidPenaltyConfiguration(t *testing.T) {
 	params := domain.DefaultParams()
 	params.Kappa = -1
 
-	require.ErrorContains(t, k.SetParams(ctx, params), "validate slashing parameters")
+	require.ErrorContains(t, k.SetParams(ctx, params), "validate penalty parameters")
 }
 
 func TestKeeperRejectsInvalidStoredPenaltyConfiguration(t *testing.T) {
@@ -64,5 +64,5 @@ func TestKeeperRejectsInvalidStoredPenaltyConfiguration(t *testing.T) {
 	require.NoError(t, k.Params.Set(ctx, params))
 
 	_, err := k.GetParams(ctx)
-	require.ErrorContains(t, err, "validate stored slashing parameters")
+	require.ErrorContains(t, err, "validate stored penalty parameters")
 }

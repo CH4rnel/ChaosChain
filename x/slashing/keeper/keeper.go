@@ -8,7 +8,7 @@ import (
 
 	"cosmossdk.io/collections"
 	storetypes "cosmossdk.io/core/store"
-	"github.com/CH4rnel/ChaosChain/pkg/slashing"
+	"github.com/CH4rnel/ChaosChain/pkg/penalty"
 	"github.com/cosmos/cosmos-sdk/codec"
 )
 
@@ -54,7 +54,7 @@ type Keeper struct {
 	storeService storetypes.KVStoreService
 
 	Schema collections.Schema
-	Params collections.Item[slashing.Params]
+	Params collections.Item[penalty.Params]
 }
 
 // NewKeeper creates a new slashing Keeper instance.
@@ -65,7 +65,7 @@ func NewKeeper(cdc codec.BinaryCodec, storeService storetypes.KVStoreService) Ke
 		cdc:          cdc,
 		storeService: storeService,
 		Params: collections.NewItem(
-			sb, ParamsKey, "params", jsonCodec[slashing.Params]{},
+			sb, ParamsKey, "params", jsonCodec[penalty.Params]{},
 		),
 	}
 
@@ -78,25 +78,25 @@ func NewKeeper(cdc codec.BinaryCodec, storeService storetypes.KVStoreService) Ke
 }
 
 // GetParams retrieves the slashing parameters.
-func (k Keeper) GetParams(ctx context.Context) (slashing.Params, error) {
+func (k Keeper) GetParams(ctx context.Context) (penalty.Params, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
 
 		if errors.Is(err, collections.ErrNotFound) {
-			return slashing.DefaultParams(), nil
+			return penalty.DefaultParams(), nil
 		}
-		return slashing.Params{}, err
+		return penalty.Params{}, err
 	}
-	if err := slashing.ValidateParams(params); err != nil {
-		return slashing.Params{}, fmt.Errorf("validate stored slashing parameters: %w", err)
+	if err := penalty.ValidateParams(params); err != nil {
+		return penalty.Params{}, fmt.Errorf("validate stored penalty parameters: %w", err)
 	}
 	return params, nil
 }
 
 // SetParams saves the slashing parameters.
-func (k Keeper) SetParams(ctx context.Context, params slashing.Params) error {
-	if err := slashing.ValidateParams(params); err != nil {
-		return fmt.Errorf("validate slashing parameters: %w", err)
+func (k Keeper) SetParams(ctx context.Context, params penalty.Params) error {
+	if err := penalty.ValidateParams(params); err != nil {
+		return fmt.Errorf("validate penalty parameters: %w", err)
 	}
 	return k.Params.Set(ctx, params)
 }
@@ -108,5 +108,5 @@ func (k Keeper) Slash(ctx context.Context, faultyShare float64) (float64, error)
 		return 0.0, err
 	}
 
-	return slashing.CalculateSlashFraction(faultyShare, params)
+	return penalty.CalculateSlashFraction(faultyShare, params)
 }
