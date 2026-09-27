@@ -3,10 +3,10 @@ modules:
     config:
       "@type": cosmos.app.runtime.v1alpha1.Module
       app_name: ChaosChain
-      begin_blockers: [staking, bank]
+      begin_blockers: [slashing, staking, bank]
       end_blockers: [staking, bank, feemarket]
-      init_genesis: [auth, bank, staking, feemarket, penalty]
-      export_genesis: [auth, bank, staking, feemarket, penalty]
+      init_genesis: [auth, bank, staking, slashing, feemarket, penalty]
+      export_genesis: [auth, bank, staking, slashing, feemarket, penalty]
   - name: auth
     config:
       "@type": cosmos.auth.module.v1.Module
@@ -22,6 +22,10 @@ modules:
   - name: staking
     config:
       "@type": cosmos.staking.module.v1.Module
+      hooks_order: [slashing]
+  - name: slashing
+    config:
+      "@type": cosmos.slashing.module.v1.Module
   - name: tx
     config:
       "@type": cosmos.tx.config.v1.Config

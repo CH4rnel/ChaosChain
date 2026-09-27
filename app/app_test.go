@@ -25,6 +25,7 @@ func TestChaosChainAppInitialization(t *testing.T) {
 	require.NotNil(t, app.ModuleManager, "ModuleManager must be initialized")
 	require.NotNil(t, app.BankKeeper, "BankKeeper must be injected")
 	require.NotNil(t, app.StakingKeeper, "StakingKeeper must be injected")
+	require.NotNil(t, app.SlashingKeeper, "SlashingKeeper must be injected")
 }
 
 func TestChaosChainAppInitGenesisRejectsEmptyValidatorSet(t *testing.T) {
@@ -37,6 +38,7 @@ func TestChaosChainAppInitGenesisRejectsEmptyValidatorSet(t *testing.T) {
 	require.NotNil(t, genesisState, "Default genesis must not be nil")
 	require.Contains(t, genesisState, "bank", "Genesis must contain bank module state")
 	require.Contains(t, genesisState, "staking", "Genesis must contain staking module state")
+	require.Contains(t, genesisState, "slashing", "Genesis must contain slashing module state")
 
 	ctx := app.BaseApp.NewNextBlockContext(cmtproto.Header{Height: 1})
 	var panicValue any

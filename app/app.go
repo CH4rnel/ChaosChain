@@ -25,6 +25,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/spf13/cobra"
 
@@ -38,6 +39,7 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/auth"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	_ "github.com/cosmos/cosmos-sdk/x/bank"
+	_ "github.com/cosmos/cosmos-sdk/x/slashing"
 	_ "github.com/cosmos/cosmos-sdk/x/staking"
 )
 
@@ -69,6 +71,7 @@ type ChaosChainApp struct {
 
 	BankKeeper      bankkeeper.BaseKeeper
 	StakingKeeper   *stakingkeeper.Keeper
+	SlashingKeeper  slashingkeeper.Keeper
 	FeeMarketKeeper feemarketkeeper.Keeper
 	PenaltyKeeper   penaltykeeper.Keeper
 }
@@ -89,6 +92,7 @@ func NewChaosChainApp(
 		interfaceRegistry codectypes.InterfaceRegistry
 		bankKeeper        bankkeeper.BaseKeeper
 		stakingKeeper     *stakingkeeper.Keeper
+		slashingKeeper    slashingkeeper.Keeper
 	)
 
 	if err := depinject.Inject(
@@ -103,6 +107,7 @@ func NewChaosChainApp(
 		&interfaceRegistry,
 		&bankKeeper,
 		&stakingKeeper,
+		&slashingKeeper,
 	); err != nil {
 		panic(fmt.Errorf("wire application dependencies: %w", err))
 	}
@@ -123,8 +128,8 @@ func NewChaosChainApp(
 		panic(fmt.Errorf("register local modules: %w", err))
 	}
 
-	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", feemarketmodule.ModuleName, penaltymodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "slashing", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "slashing", feemarketmodule.ModuleName, penaltymodule.ModuleName)
 	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", feemarketmodule.ModuleName)
 
 	if err := runtimeApp.Load(loadLatest); err != nil {
@@ -139,6 +144,7 @@ func NewChaosChainApp(
 		interfaceRegistry: interfaceRegistry,
 		BankKeeper:        bankKeeper,
 		StakingKeeper:     stakingKeeper,
+		SlashingKeeper:    slashingKeeper,
 		FeeMarketKeeper:   feeMarketKeeper,
 		PenaltyKeeper:     penaltyKeeper,
 	}
