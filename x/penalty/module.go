@@ -1,4 +1,4 @@
-package slashing
+package penalty
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 
 	"cosmossdk.io/core/appmodule"
 	domain "github.com/CH4rnel/ChaosChain/pkg/penalty"
-	"github.com/CH4rnel/ChaosChain/x/slashing/keeper"
+	"github.com/CH4rnel/ChaosChain/x/penalty/keeper"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const ModuleName = "slashing"
+const ModuleName = "penalty"
 
 var (
 	_ module.AppModuleBasic = AppModule{}
@@ -40,7 +40,7 @@ func defaultGenesisState() GenesisState {
 func mustMarshalGenesis(genesis GenesisState) json.RawMessage {
 	bz, err := json.Marshal(genesis)
 	if err != nil {
-		panic(fmt.Errorf("encode slashing genesis: %w", err))
+		panic(fmt.Errorf("encode penalty genesis: %w", err))
 	}
 	return bz
 }
@@ -56,10 +56,10 @@ func (AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 func (AppModule) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncodingConfig, bz json.RawMessage) error {
 	var genesis GenesisState
 	if err := json.Unmarshal(bz, &genesis); err != nil {
-		return fmt.Errorf("decode slashing genesis: %w", err)
+		return fmt.Errorf("decode penalty genesis: %w", err)
 	}
 	if err := domain.ValidateParams(genesis.Params); err != nil {
-		return fmt.Errorf("validate slashing genesis: %w", err)
+		return fmt.Errorf("validate penalty genesis: %w", err)
 	}
 	return nil
 }
@@ -80,17 +80,17 @@ func (m AppModule) RegisterServices(cfg module.Configurator) {}
 func (m AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) {
 	var genesis GenesisState
 	if err := json.Unmarshal(data, &genesis); err != nil {
-		panic(fmt.Errorf("decode slashing genesis: %w", err))
+		panic(fmt.Errorf("decode penalty genesis: %w", err))
 	}
 	if err := m.keeper.SetParams(ctx, genesis.Params); err != nil {
-		panic(fmt.Errorf("initialize slashing parameters: %w", err))
+		panic(fmt.Errorf("initialize penalty parameters: %w", err))
 	}
 }
 
 func (m AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {
 	params, err := m.keeper.GetParams(ctx)
 	if err != nil {
-		panic(fmt.Errorf("export slashing parameters: %w", err))
+		panic(fmt.Errorf("export penalty parameters: %w", err))
 	}
 	return mustMarshalGenesis(GenesisState{Params: params})
 }

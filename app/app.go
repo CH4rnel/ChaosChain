@@ -30,8 +30,8 @@ import (
 
 	feemarketmodule "github.com/CH4rnel/ChaosChain/x/feemarket"
 	feemarketkeeper "github.com/CH4rnel/ChaosChain/x/feemarket/keeper"
-	slashingmodule "github.com/CH4rnel/ChaosChain/x/slashing"
-	slashingkeeper "github.com/CH4rnel/ChaosChain/x/slashing/keeper"
+	penaltymodule "github.com/CH4rnel/ChaosChain/x/penalty"
+	penaltykeeper "github.com/CH4rnel/ChaosChain/x/penalty/keeper"
 
 	_ "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
 	_ "cosmossdk.io/api/cosmos/tx/config/v1"
@@ -70,7 +70,7 @@ type ChaosChainApp struct {
 	BankKeeper      bankkeeper.BaseKeeper
 	StakingKeeper   *stakingkeeper.Keeper
 	FeeMarketKeeper feemarketkeeper.Keeper
-	SlashingKeeper  slashingkeeper.Keeper
+	PenaltyKeeper   penaltykeeper.Keeper
 }
 
 func NewChaosChainApp(
@@ -109,22 +109,22 @@ func NewChaosChainApp(
 
 	runtimeApp := appBuilder.Build(db, baseAppOptions...)
 	feeMarketKey := storetypes.NewKVStoreKey(feemarketmodule.ModuleName)
-	slashingKey := storetypes.NewKVStoreKey(slashingmodule.ModuleName)
-	if err := runtimeApp.RegisterStores(feeMarketKey, slashingKey); err != nil {
+	penaltyKey := storetypes.NewKVStoreKey(penaltymodule.ModuleName)
+	if err := runtimeApp.RegisterStores(feeMarketKey, penaltyKey); err != nil {
 		panic(fmt.Errorf("register local module stores: %w", err))
 	}
 
 	feeMarketKeeper := feemarketkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(feeMarketKey))
-	slashingKeeper := slashingkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(slashingKey))
+	penaltyKeeper := penaltykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(penaltyKey))
 	if err := runtimeApp.RegisterModules(
 		feemarketmodule.NewAppModule(appCodec, feeMarketKeeper),
-		slashingmodule.NewAppModule(appCodec, slashingKeeper),
+		penaltymodule.NewAppModule(appCodec, penaltyKeeper),
 	); err != nil {
 		panic(fmt.Errorf("register local modules: %w", err))
 	}
 
-	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", feemarketmodule.ModuleName, slashingmodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", feemarketmodule.ModuleName, slashingmodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", feemarketmodule.ModuleName, penaltymodule.ModuleName)
 	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", feemarketmodule.ModuleName)
 
 	if err := runtimeApp.Load(loadLatest); err != nil {
@@ -140,7 +140,7 @@ func NewChaosChainApp(
 		BankKeeper:        bankKeeper,
 		StakingKeeper:     stakingKeeper,
 		FeeMarketKeeper:   feeMarketKeeper,
-		SlashingKeeper:    slashingKeeper,
+		PenaltyKeeper:     penaltyKeeper,
 	}
 }
 

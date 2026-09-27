@@ -5,8 +5,8 @@ modules:
       app_name: ChaosChain
       begin_blockers: [staking, bank]
       end_blockers: [staking, bank, feemarket]
-      init_genesis: [auth, bank, staking, feemarket, slashing]
-      export_genesis: [auth, bank, staking, feemarket, slashing]
+      init_genesis: [auth, bank, staking, feemarket, penalty]
+      export_genesis: [auth, bank, staking, feemarket, penalty]
   - name: auth
     config:
       "@type": cosmos.auth.module.v1.Module

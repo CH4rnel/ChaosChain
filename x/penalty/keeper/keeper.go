@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	// ParamsKey defines the collections prefix for the slashing parameters.
+	// ParamsKey defines the collections prefix for penalty parameters.
 	ParamsKey = collections.NewPrefix(0)
 )
 
@@ -77,7 +77,7 @@ func NewKeeper(cdc codec.BinaryCodec, storeService storetypes.KVStoreService) Ke
 	return k
 }
 
-// GetParams retrieves the slashing parameters.
+// GetParams retrieves penalty parameters.
 func (k Keeper) GetParams(ctx context.Context) (penalty.Params, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {
@@ -93,7 +93,7 @@ func (k Keeper) GetParams(ctx context.Context) (penalty.Params, error) {
 	return params, nil
 }
 
-// SetParams saves the slashing parameters.
+// SetParams saves penalty parameters.
 func (k Keeper) SetParams(ctx context.Context, params penalty.Params) error {
 	if err := penalty.ValidateParams(params); err != nil {
 		return fmt.Errorf("validate penalty parameters: %w", err)

@@ -1,4 +1,4 @@
-package slashing
+package penalty
 
 import (
 	"encoding/json"
@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	domain "github.com/CH4rnel/ChaosChain/pkg/penalty"
-	"github.com/CH4rnel/ChaosChain/x/slashing/keeper"
+	"github.com/CH4rnel/ChaosChain/x/penalty/keeper"
 )
 
 func TestGenesisRoundTrip(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
-	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_slashing"))
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
 	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
@@ -43,7 +43,7 @@ func TestValidateGenesisRejectsInvalidPenaltyConfiguration(t *testing.T) {
 
 func TestKeeperRejectsInvalidPenaltyConfiguration(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
-	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_slashing"))
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
 	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
@@ -55,7 +55,7 @@ func TestKeeperRejectsInvalidPenaltyConfiguration(t *testing.T) {
 
 func TestKeeperRejectsInvalidStoredPenaltyConfiguration(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
-	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_slashing"))
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
 	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
