@@ -17,6 +17,50 @@ type realisticInputs struct {
 	AntiWindup float64
 }
 
+type validTransitionInputs struct {
+	BaseFee    float64
+	GasUsed    float64
+	GasTarget  float64
+	Kp         float64
+	Ki         float64
+	AntiWindup float64
+	PrevAcc    float64
+}
+
+func (r validTransitionInputs) Generate(rand *rand.Rand, size int) reflect.Value {
+	antiWindup := rand.Float64() * 10
+	return reflect.ValueOf(validTransitionInputs{
+		BaseFee:    1 + rand.Float64()*1_000,
+		GasUsed:    rand.Float64() * 20_000_000,
+		GasTarget:  10_000_000 + rand.Float64()*10_000_000,
+		Kp:         rand.Float64() * 2,
+		Ki:         rand.Float64() * 0.5,
+		AntiWindup: antiWindup,
+		PrevAcc:    (rand.Float64()*2 - 1) * antiWindup,
+	})
+}
+
+func TestProperty_ValidTransitionsPreserveStateInvariants(t *testing.T) {
+	f := func(inputs validTransitionInputs) bool {
+		params := Params{
+			Kp:              inputs.Kp,
+			Ki:              inputs.Ki,
+			AntiWindupLimit: inputs.AntiWindup,
+			GasTarget:       inputs.GasTarget,
+		}
+		prev := State{BaseFee: inputs.BaseFee, Acc: inputs.PrevAcc}
+		next, err := Next(prev, inputs.GasUsed, params)
+		if err != nil {
+			return false
+		}
+		return ValidateStateWithParams(next, params) == nil
+	}
+
+	if err := quick.Check(f, &quick.Config{MaxCount: 10_000}); err != nil {
+		t.Errorf("state invariant violated: %v", err)
+	}
+}
+
 func (r realisticInputs) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(realisticInputs{
 		BaseFee:    rand.Float64() * 1000,              // 0 - 1000
