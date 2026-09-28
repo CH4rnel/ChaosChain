@@ -30,6 +30,7 @@ import (
 	authmodule "github.com/cosmos/cosmos-sdk/x/auth"
 	bankmodule "github.com/cosmos/cosmos-sdk/x/bank"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	distributionmodule "github.com/cosmos/cosmos-sdk/x/distribution"
 	genutilmodule "github.com/cosmos/cosmos-sdk/x/genutil"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
@@ -45,11 +46,13 @@ import (
 	penaltykeeper "github.com/CH4rnel/ChaosChain/x/penalty/keeper"
 
 	_ "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
+	_ "cosmossdk.io/api/cosmos/distribution/module/v1"
 	_ "cosmossdk.io/api/cosmos/genutil/module/v1"
 	_ "cosmossdk.io/api/cosmos/tx/config/v1"
 	_ "github.com/cosmos/cosmos-sdk/x/auth"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	_ "github.com/cosmos/cosmos-sdk/x/bank"
+	_ "github.com/cosmos/cosmos-sdk/x/distribution"
 	_ "github.com/cosmos/cosmos-sdk/x/genutil"
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"
 	_ "github.com/cosmos/cosmos-sdk/x/staking"
@@ -140,8 +143,8 @@ func NewChaosChainApp(
 		panic(fmt.Errorf("register local modules: %w", err))
 	}
 
-	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "slashing", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "slashing", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "distribution", "slashing", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "distribution", "slashing", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
 	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", feemarketmodule.ModuleName)
 
 	if err := runtimeApp.Load(loadLatest); err != nil {
@@ -252,6 +255,7 @@ func ModuleBasics() module.BasicManager {
 		authmodule.AppModuleBasic{},
 		bankmodule.AppModuleBasic{},
 		stakingmodule.AppModuleBasic{},
+		distributionmodule.AppModuleBasic{},
 		slashingmodule.AppModuleBasic{},
 		genutilmodule.NewAppModuleBasic(genutiltypes.DefaultMessageValidator),
 		feemarketmodule.AppModule{},

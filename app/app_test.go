@@ -36,6 +36,13 @@ func TestChaosChainAppInitialization(t *testing.T) {
 	require.NotNil(t, app.SlashingKeeper, "SlashingKeeper must be injected")
 }
 
+func TestGenesisIncludesValidatorRewardDistribution(t *testing.T) {
+	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
+
+	require.Contains(t, app.DefaultGenesis(), "distribution")
+	require.Contains(t, app.ModuleManager.Modules, "distribution")
+}
+
 func TestChaosChainAppInitGenesisRejectsEmptyValidatorSet(t *testing.T) {
 	db := dbm.NewMemDB()
 	logger := log.NewTestLogger(t)

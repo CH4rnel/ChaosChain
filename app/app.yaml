@@ -3,10 +3,10 @@ modules:
     config:
       "@type": cosmos.app.runtime.v1alpha1.Module
       app_name: ChaosChain
-      begin_blockers: [slashing, staking, bank]
+      begin_blockers: [distribution, slashing, staking, bank]
       end_blockers: [staking, bank, feemarket]
-      init_genesis: [auth, bank, staking, slashing, genutil, feemarket, penalty]
-      export_genesis: [auth, bank, staking, slashing, genutil, feemarket, penalty]
+      init_genesis: [auth, bank, staking, distribution, slashing, genutil, feemarket, penalty]
+      export_genesis: [auth, bank, staking, distribution, slashing, genutil, feemarket, penalty]
   - name: auth
     config:
       "@type": cosmos.auth.module.v1.Module
@@ -16,13 +16,18 @@ modules:
           permissions: [burner, staking]
         - account: not_bonded_tokens_pool
           permissions: [burner, staking]
+        - account: distribution
+          permissions: []
   - name: bank
     config:
       "@type": cosmos.bank.module.v1.Module
+  - name: distribution
+    config:
+      "@type": cosmos.distribution.module.v1.Module
   - name: staking
     config:
       "@type": cosmos.staking.module.v1.Module
-      hooks_order: [slashing]
+      hooks_order: [distribution, slashing]
   - name: slashing
     config:
       "@type": cosmos.slashing.module.v1.Module
