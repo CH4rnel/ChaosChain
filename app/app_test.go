@@ -39,6 +39,7 @@ func TestChaosChainAppInitGenesisRejectsEmptyValidatorSet(t *testing.T) {
 	require.Contains(t, genesisState, "bank", "Genesis must contain bank module state")
 	require.Contains(t, genesisState, "staking", "Genesis must contain staking module state")
 	require.Contains(t, genesisState, "slashing", "Genesis must contain slashing module state")
+	require.Contains(t, genesisState, "genutil", "Genesis must contain validator transaction module state")
 
 	ctx := app.BaseApp.NewNextBlockContext(cmtproto.Header{Height: 1})
 	var panicValue any

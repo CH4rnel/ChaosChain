@@ -35,10 +35,12 @@ import (
 	penaltykeeper "github.com/CH4rnel/ChaosChain/x/penalty/keeper"
 
 	_ "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
+	_ "cosmossdk.io/api/cosmos/genutil/module/v1"
 	_ "cosmossdk.io/api/cosmos/tx/config/v1"
 	_ "github.com/cosmos/cosmos-sdk/x/auth"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	_ "github.com/cosmos/cosmos-sdk/x/bank"
+	_ "github.com/cosmos/cosmos-sdk/x/genutil"
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"
 	_ "github.com/cosmos/cosmos-sdk/x/staking"
 )
@@ -128,8 +130,8 @@ func NewChaosChainApp(
 		panic(fmt.Errorf("register local modules: %w", err))
 	}
 
-	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "slashing", feemarketmodule.ModuleName, penaltymodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "slashing", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "slashing", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "slashing", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
 	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", feemarketmodule.ModuleName)
 
 	if err := runtimeApp.Load(loadLatest); err != nil {
