@@ -34,6 +34,7 @@ import (
 	genutilmodule "github.com/cosmos/cosmos-sdk/x/genutil"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
+	govmodule "github.com/cosmos/cosmos-sdk/x/gov"
 	slashingmodule "github.com/cosmos/cosmos-sdk/x/slashing"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingmodule "github.com/cosmos/cosmos-sdk/x/staking"
@@ -48,12 +49,14 @@ import (
 	_ "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
 	_ "cosmossdk.io/api/cosmos/distribution/module/v1"
 	_ "cosmossdk.io/api/cosmos/genutil/module/v1"
+	_ "cosmossdk.io/api/cosmos/gov/module/v1"
 	_ "cosmossdk.io/api/cosmos/tx/config/v1"
 	_ "github.com/cosmos/cosmos-sdk/x/auth"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	_ "github.com/cosmos/cosmos-sdk/x/bank"
 	_ "github.com/cosmos/cosmos-sdk/x/distribution"
 	_ "github.com/cosmos/cosmos-sdk/x/genutil"
+	_ "github.com/cosmos/cosmos-sdk/x/gov"
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"
 	_ "github.com/cosmos/cosmos-sdk/x/staking"
 )
@@ -143,9 +146,9 @@ func NewChaosChainApp(
 		panic(fmt.Errorf("register local modules: %w", err))
 	}
 
-	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "distribution", "slashing", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "distribution", "slashing", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", feemarketmodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "distribution", "slashing", "gov", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "distribution", "slashing", "gov", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", "gov", feemarketmodule.ModuleName)
 
 	if err := runtimeApp.Load(loadLatest); err != nil {
 		panic(fmt.Errorf("load application state: %w", err))
@@ -256,6 +259,7 @@ func ModuleBasics() module.BasicManager {
 		bankmodule.AppModuleBasic{},
 		stakingmodule.AppModuleBasic{},
 		distributionmodule.AppModuleBasic{},
+		govmodule.NewAppModuleBasic(nil),
 		slashingmodule.AppModuleBasic{},
 		genutilmodule.NewAppModuleBasic(genutiltypes.DefaultMessageValidator),
 		feemarketmodule.AppModule{},
