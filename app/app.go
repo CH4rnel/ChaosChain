@@ -14,6 +14,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -24,8 +25,15 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	authmodule "github.com/cosmos/cosmos-sdk/x/auth"
+	bankmodule "github.com/cosmos/cosmos-sdk/x/bank"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	genutilmodule "github.com/cosmos/cosmos-sdk/x/genutil"
+	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
+	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
+	slashingmodule "github.com/cosmos/cosmos-sdk/x/slashing"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
+	stakingmodule "github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/spf13/cobra"
 
@@ -190,8 +198,34 @@ func (app *ChaosChainApp) RegisterTendermintService(clientCtx client.Context) {
 
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{Use: "chaoschaind", Short: "ChaosChain daemon (Layer 1 core)"}
+	basics := ModuleBasics()
+	var txConfig client.TxConfig
+	if err := depinject.Inject(
+		depinject.Configs(
+			appconfig.LoadYAML(appConfigYAML),
+			depinject.Supply(log.NewNopLogger()),
+		),
+		&txConfig,
+	); err != nil {
+		panic(fmt.Errorf("wire CLI transaction configuration: %w", err))
+	}
+	rootCmd.AddCommand(clientkeys.Commands())
+	rootCmd.AddCommand(genutilcli.InitCmd(basics, DefaultNodeHome))
+	rootCmd.AddCommand(genutilcli.Commands(txConfig, basics, DefaultNodeHome))
 	rootCmd.AddCommand(server.StatusCommand())
 	return rootCmd
+}
+
+func ModuleBasics() module.BasicManager {
+	return module.NewBasicManager(
+		authmodule.AppModuleBasic{},
+		bankmodule.AppModuleBasic{},
+		stakingmodule.AppModuleBasic{},
+		slashingmodule.AppModuleBasic{},
+		genutilmodule.NewAppModuleBasic(genutiltypes.DefaultMessageValidator),
+		feemarketmodule.AppModule{},
+		penaltymodule.AppModule{},
+	)
 }
 
 var _ servertypes.Application = (*ChaosChainApp)(nil)

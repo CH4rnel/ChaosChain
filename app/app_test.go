@@ -63,3 +63,13 @@ func TestModuleManagerOrderExecution(t *testing.T) {
 		app.ModuleManager.EndBlock(ctx)
 	}, "ModuleManager lifecycle hooks must not panic")
 }
+
+func TestRootCmdIncludesValidatorBootstrapCommands(t *testing.T) {
+	rootCmd := NewRootCmd()
+
+	for _, path := range [][]string{{"init"}, {"keys", "add"}, {"genesis", "gentx"}, {"genesis", "collect-gentxs"}} {
+		cmd, _, err := rootCmd.Find(path)
+		require.NoError(t, err)
+		require.NotNil(t, cmd, "command %v must be registered", path)
+	}
+}
