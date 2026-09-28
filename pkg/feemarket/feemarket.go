@@ -71,6 +71,19 @@ func ValidateState(state State) error {
 	return nil
 }
 
+func ValidateStateWithParams(state State, params Params) error {
+	if err := ValidateParams(params); err != nil {
+		return err
+	}
+	if err := ValidateState(state); err != nil {
+		return err
+	}
+	if state.Acc < -params.AntiWindupLimit || state.Acc > params.AntiWindupLimit {
+		return errors.New("accumulator exceeds anti-windup limit")
+	}
+	return nil
+}
+
 // State represents the current fee market state.
 type State struct {
 	BaseFee float64 `json:"base_fee"`

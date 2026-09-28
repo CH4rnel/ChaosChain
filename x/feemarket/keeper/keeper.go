@@ -96,6 +96,13 @@ func (k Keeper) GetState(ctx context.Context) (feemarket.State, error) {
 	if err := feemarket.ValidateState(state); err != nil {
 		return feemarket.State{}, fmt.Errorf("validate stored fee market state: %w", err)
 	}
+	params, err := k.GetParams(ctx)
+	if err != nil {
+		return feemarket.State{}, fmt.Errorf("load fee market parameters for state validation: %w", err)
+	}
+	if err := feemarket.ValidateStateWithParams(state, params); err != nil {
+		return feemarket.State{}, fmt.Errorf("validate stored fee market state against parameters: %w", err)
+	}
 	return state, nil
 }
 
@@ -103,6 +110,13 @@ func (k Keeper) GetState(ctx context.Context) (feemarket.State, error) {
 func (k Keeper) SetState(ctx context.Context, state feemarket.State) error {
 	if err := feemarket.ValidateState(state); err != nil {
 		return fmt.Errorf("validate fee market state: %w", err)
+	}
+	params, err := k.GetParams(ctx)
+	if err != nil {
+		return fmt.Errorf("load fee market parameters for state validation: %w", err)
+	}
+	if err := feemarket.ValidateStateWithParams(state, params); err != nil {
+		return fmt.Errorf("validate fee market state against parameters: %w", err)
 	}
 	return k.State.Set(ctx, state)
 }

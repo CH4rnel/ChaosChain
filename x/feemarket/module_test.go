@@ -44,6 +44,16 @@ func TestValidateGenesisRejectsInvalidControllerConfiguration(t *testing.T) {
 	require.ErrorContains(t, err, "gasTarget out of valid range")
 }
 
+func TestValidateGenesisRejectsAccumulatorOutsideAntiWindupBounds(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	genesis := defaultGenesisState()
+	genesis.Params.AntiWindupLimit = 2
+	genesis.State.Acc = 2.1
+
+	err := (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis))
+	require.ErrorContains(t, err, "accumulator exceeds anti-windup limit")
+}
+
 func TestInitGenesisValidatesAllControllerDataBeforeWriting(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
@@ -89,6 +99,21 @@ func TestKeeperRejectsInvalidStoredControllerData(t *testing.T) {
 	require.ErrorContains(t, err, "validate stored fee market parameters")
 	_, err = k.GetState(ctx)
 	require.ErrorContains(t, err, "validate stored fee market state")
+}
+
+func TestKeeperRejectsStoredAccumulatorOutsideAntiWindupBounds(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	params := domain.DefaultParams()
+	params.AntiWindupLimit = 2
+	require.NoError(t, k.Params.Set(ctx, params))
+	require.NoError(t, k.State.Set(ctx, domain.State{BaseFee: 10, Acc: 2.1}))
+
+	_, err := k.GetState(ctx)
+	require.ErrorContains(t, err, "accumulator exceeds anti-windup limit")
 }
 
 func TestEndBlockPropagatesInvalidControllerState(t *testing.T) {

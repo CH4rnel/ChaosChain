@@ -58,7 +58,7 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	if err := domain.ValidateParams(genesis.Params); err != nil {
 		return GenesisState{}, fmt.Errorf("validate fee market genesis parameters: %w", err)
 	}
-	if err := domain.ValidateState(genesis.State); err != nil {
+	if err := domain.ValidateStateWithParams(genesis.State, genesis.Params); err != nil {
 		return GenesisState{}, fmt.Errorf("validate fee market genesis state: %w", err)
 	}
 	return genesis, nil
