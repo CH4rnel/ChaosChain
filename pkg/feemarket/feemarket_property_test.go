@@ -157,7 +157,10 @@ func TestProperty_Determinism(t *testing.T) {
 		result2, err2 := Next(prevState, inputs.GasUsed, params)
 
 		if err1 != nil || err2 != nil {
-			return err1 == err2
+			if err1 == nil || err2 == nil {
+				return false
+			}
+			return err1.Error() == err2.Error()
 		}
 
 		return result1.BaseFee == result2.BaseFee && result1.Acc == result2.Acc

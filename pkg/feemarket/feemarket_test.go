@@ -2,6 +2,7 @@
 package feemarket
 
 import (
+	"fmt"
 	"math"
 	"testing"
 )
@@ -130,5 +131,17 @@ func TestNext_AntiWindupRegression(t *testing.T) {
 		if prev.Acc < -p.AntiWindupLimit {
 			t.Errorf("acc fell below -AntiWindupLimit at block %d: got %f, limit %f", i, prev.Acc, p.AntiWindupLimit)
 		}
+	}
+}
+
+func TestNextRejectsAccumulatorOutsideConfiguredAntiWindupBounds(t *testing.T) {
+	params := Params{Kp: 0.1, Ki: 0.05, AntiWindupLimit: 2, GasTarget: 100}
+	for _, accumulator := range []float64{-2.1, 2.1} {
+		t.Run(fmt.Sprintf("accumulator_%g", accumulator), func(t *testing.T) {
+			_, err := Next(State{BaseFee: 10, Acc: accumulator}, 100, params)
+			if err == nil {
+				t.Fatal("expected accumulator outside configured bounds to be rejected")
+			}
+		})
 	}
 }

@@ -95,7 +95,7 @@ func Next(prev State, gasUsed float64, p Params) (State, error) {
 	if err := ValidateParams(p); err != nil {
 		return State{}, err
 	}
-	if err := ValidateState(prev); err != nil {
+	if err := ValidateStateWithParams(prev, p); err != nil {
 		return State{}, err
 	}
 	if math.IsNaN(gasUsed) || math.IsInf(gasUsed, 0) {
