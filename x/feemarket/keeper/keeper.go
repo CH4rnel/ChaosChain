@@ -89,7 +89,15 @@ func (k Keeper) GetState(ctx context.Context) (feemarket.State, error) {
 	if err != nil {
 
 		if errors.Is(err, collections.ErrNotFound) {
-			return feemarket.State{BaseFee: 10.0, Acc: 0.0}, nil
+			state := feemarket.State{BaseFee: 10.0, Acc: 0.0}
+			params, err := k.GetParams(ctx)
+			if err != nil {
+				return feemarket.State{}, fmt.Errorf("load fee market parameters for default state validation: %w", err)
+			}
+			if err := feemarket.ValidateStateWithParams(state, params); err != nil {
+				return feemarket.State{}, fmt.Errorf("validate default fee market state: %w", err)
+			}
+			return state, nil
 		}
 		return feemarket.State{}, err
 	}
