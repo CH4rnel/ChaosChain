@@ -6,6 +6,8 @@ import (
 	"cosmossdk.io/log/v2"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
+	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,6 +15,12 @@ type mockAppOptions struct{}
 
 func (m mockAppOptions) Get(key string) any {
 	return nil
+}
+
+type appOptions map[string]any
+
+func (opts appOptions) Get(key string) any {
+	return opts[key]
 }
 
 func TestChaosChainAppInitialization(t *testing.T) {
@@ -72,4 +80,18 @@ func TestRootCmdIncludesValidatorBootstrapCommands(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, cmd, "command %v must be registered", path)
 	}
+}
+
+func TestServerAppAppliesSDKBaseAppOptions(t *testing.T) {
+	chainID := "chaos-sdk-options-test"
+	appOptions := appOptions{
+		clientflags.FlagHome:    t.TempDir(),
+		clientflags.FlagChainID: chainID,
+		server.FlagPruning:      "default",
+	}
+
+	application := newServerApp(log.NewTestLogger(t), dbm.NewMemDB(), appOptions)
+	chaosApp, ok := application.(*ChaosChainApp)
+	require.True(t, ok)
+	require.Equal(t, chainID, chaosApp.ChainID())
 }

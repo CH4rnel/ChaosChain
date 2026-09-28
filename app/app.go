@@ -236,13 +236,15 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(genutilcli.InitCmd(basics, DefaultNodeHome))
 	rootCmd.AddCommand(genutilcli.Commands(txConfig, basics, DefaultNodeHome))
 	rootCmd.AddCommand(server.StartCmd(
-		func(logger log.Logger, db dbm.DB, opts servertypes.AppOptions) servertypes.Application {
-			return NewChaosChainApp(logger, db, nil, true, opts)
-		},
+		newServerApp,
 		DefaultNodeHome,
 	))
 	rootCmd.AddCommand(server.StatusCommand())
 	return rootCmd
+}
+
+func newServerApp(logger log.Logger, db dbm.DB, opts servertypes.AppOptions) servertypes.Application {
+	return NewChaosChainApp(logger, db, nil, true, opts, server.DefaultBaseappOptions(opts)...)
 }
 
 func ModuleBasics() module.BasicManager {
