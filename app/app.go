@@ -39,6 +39,7 @@ import (
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingmodule "github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
+	upgrademodule "github.com/cosmos/cosmos-sdk/x/upgrade"
 	"github.com/spf13/cobra"
 
 	feemarketmodule "github.com/CH4rnel/ChaosChain/x/feemarket"
@@ -51,6 +52,7 @@ import (
 	_ "cosmossdk.io/api/cosmos/genutil/module/v1"
 	_ "cosmossdk.io/api/cosmos/gov/module/v1"
 	_ "cosmossdk.io/api/cosmos/tx/config/v1"
+	_ "cosmossdk.io/api/cosmos/upgrade/module/v1"
 	_ "github.com/cosmos/cosmos-sdk/x/auth"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	_ "github.com/cosmos/cosmos-sdk/x/bank"
@@ -59,6 +61,7 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/gov"
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"
 	_ "github.com/cosmos/cosmos-sdk/x/staking"
+	_ "github.com/cosmos/cosmos-sdk/x/upgrade"
 )
 
 //go:embed app.yaml
@@ -99,7 +102,7 @@ func NewChaosChainApp(
 	db dbm.DB,
 	traceStore io.Writer,
 	loadLatest bool,
-	_ servertypes.AppOptions,
+	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *ChaosChainApp {
 	var (
@@ -117,6 +120,7 @@ func NewChaosChainApp(
 		depinject.Configs(
 			appconfig.LoadYAML(appConfigYAML),
 			depinject.Supply(logger),
+			depinject.Supply(appOpts),
 		),
 		&appBuilder,
 		&appCodec,
@@ -146,8 +150,8 @@ func NewChaosChainApp(
 		panic(fmt.Errorf("register local modules: %w", err))
 	}
 
-	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "distribution", "slashing", "gov", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "distribution", "slashing", "gov", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "distribution", "slashing", "gov", "upgrade", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "distribution", "slashing", "gov", "upgrade", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
 	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", "gov", feemarketmodule.ModuleName)
 
 	if err := runtimeApp.Load(loadLatest); err != nil {
@@ -260,6 +264,7 @@ func ModuleBasics() module.BasicManager {
 		stakingmodule.AppModuleBasic{},
 		distributionmodule.AppModuleBasic{},
 		govmodule.NewAppModuleBasic(nil),
+		upgrademodule.AppModuleBasic{},
 		slashingmodule.AppModuleBasic{},
 		genutilmodule.NewAppModuleBasic(genutiltypes.DefaultMessageValidator),
 		feemarketmodule.AppModule{},

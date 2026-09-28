@@ -41,8 +41,10 @@ func TestGenesisIncludesValidatorRewardDistribution(t *testing.T) {
 
 	require.Contains(t, app.DefaultGenesis(), "distribution")
 	require.Contains(t, app.DefaultGenesis(), "gov")
+	require.Contains(t, app.DefaultGenesis(), "upgrade")
 	require.Contains(t, app.ModuleManager.Modules, "distribution")
 	require.Contains(t, app.ModuleManager.Modules, "gov")
+	require.Contains(t, app.ModuleManager.Modules, "upgrade")
 }
 
 func TestChaosChainAppInitGenesisRejectsEmptyValidatorSet(t *testing.T) {
