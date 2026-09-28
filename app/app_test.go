@@ -67,7 +67,7 @@ func TestModuleManagerOrderExecution(t *testing.T) {
 func TestRootCmdIncludesValidatorBootstrapCommands(t *testing.T) {
 	rootCmd := NewRootCmd()
 
-	for _, path := range [][]string{{"init"}, {"keys", "add"}, {"genesis", "gentx"}, {"genesis", "collect-gentxs"}} {
+	for _, path := range [][]string{{"init"}, {"keys", "add"}, {"genesis", "gentx"}, {"genesis", "collect-gentxs"}, {"start"}, {"status"}} {
 		cmd, _, err := rootCmd.Find(path)
 		require.NoError(t, err)
 		require.NotNil(t, cmd, "command %v must be registered", path)

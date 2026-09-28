@@ -11,9 +11,11 @@ import (
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/depinject/appconfig"
 	"cosmossdk.io/log/v2"
+	cmtcfg "github.com/cometbft/cometbft/config"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
 	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -198,20 +200,47 @@ func (app *ChaosChainApp) RegisterTendermintService(clientCtx client.Context) {
 
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{Use: "chaoschaind", Short: "ChaosChain daemon (Layer 1 core)"}
+	rootCmd.PersistentFlags().String(clientflags.FlagHome, DefaultNodeHome, "The application home directory")
 	basics := ModuleBasics()
-	var txConfig client.TxConfig
+	var (
+		appCodec          codec.Codec
+		legacyAmino       *codec.LegacyAmino
+		txConfig          client.TxConfig
+		interfaceRegistry codectypes.InterfaceRegistry
+	)
 	if err := depinject.Inject(
 		depinject.Configs(
 			appconfig.LoadYAML(appConfigYAML),
 			depinject.Supply(log.NewNopLogger()),
 		),
+		&appCodec,
+		&legacyAmino,
 		&txConfig,
+		&interfaceRegistry,
 	); err != nil {
-		panic(fmt.Errorf("wire CLI transaction configuration: %w", err))
+		panic(fmt.Errorf("wire CLI encoding configuration: %w", err))
+	}
+	clientCtx := client.Context{}.
+		WithCodec(appCodec).
+		WithLegacyAmino(legacyAmino).
+		WithInterfaceRegistry(interfaceRegistry).
+		WithTxConfig(txConfig).
+		WithHomeDir(DefaultNodeHome)
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		if err := client.SetCmdClientContextHandler(clientCtx, cmd); err != nil {
+			return err
+		}
+		return server.InterceptConfigsPreRunHandler(cmd, "", nil, cmtcfg.DefaultConfig())
 	}
 	rootCmd.AddCommand(clientkeys.Commands())
 	rootCmd.AddCommand(genutilcli.InitCmd(basics, DefaultNodeHome))
 	rootCmd.AddCommand(genutilcli.Commands(txConfig, basics, DefaultNodeHome))
+	rootCmd.AddCommand(server.StartCmd(
+		func(logger log.Logger, db dbm.DB, opts servertypes.AppOptions) servertypes.Application {
+			return NewChaosChainApp(logger, db, nil, true, opts)
+		},
+		DefaultNodeHome,
+	))
 	rootCmd.AddCommand(server.StatusCommand())
 	return rootCmd
 }
