@@ -102,3 +102,24 @@ func TestEndBlockPropagatesInvalidControllerState(t *testing.T) {
 
 	require.ErrorContains(t, k.EndBlock(ctx), "baseFee out of valid range")
 }
+
+func TestEndBlockRegulatesAgainstFinalizedBlockGas(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger()).WithBlockGasUsed(20_000_000)
+	ctx.GasMeter().ConsumeGas(1_000, "transaction gas meter")
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	params := domain.DefaultParams()
+	params.GasTarget = 10_000_000
+	initial := domain.State{BaseFee: 10}
+	require.NoError(t, k.SetParams(ctx, params))
+	require.NoError(t, k.SetState(ctx, initial))
+
+	require.NoError(t, k.EndBlock(ctx))
+	got, err := k.GetState(ctx)
+	require.NoError(t, err)
+	want, err := domain.Next(initial, 20_000_000, params)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+}

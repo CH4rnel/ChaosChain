@@ -13,7 +13,7 @@ func (k Keeper) EndBlock(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	// 1. Gather block data
-	gasUsed := float64(sdkCtx.GasMeter().GasConsumed())
+	gasUsed := float64(sdkCtx.BlockGasUsed())
 
 	// 2. Fetch current state and params from KVStore
 	params, err := k.GetParams(ctx)
