@@ -145,3 +145,11 @@ func TestNextRejectsAccumulatorOutsideConfiguredAntiWindupBounds(t *testing.T) {
 		})
 	}
 }
+
+func TestNextRejectsBaseFeeAboveConsensusLimit(t *testing.T) {
+	params := Params{Kp: 0.2, Ki: 0, AntiWindupLimit: 2, GasTarget: 100}
+	_, err := Next(State{BaseFee: MaxBaseFee, Acc: 0}, 200, params)
+	if err == nil {
+		t.Fatal("expected calculated base fee above the consensus limit to be rejected")
+	}
+}

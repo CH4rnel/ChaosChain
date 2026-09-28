@@ -135,8 +135,12 @@ func Next(prev State, gasUsed float64, p Params) (State, error) {
 		return State{}, errors.New("calculated baseFee is not finite or positive")
 	}
 
-	return State{
+	next := State{
 		BaseFee: baseFeeNext,
 		Acc:     acc,
-	}, nil
+	}
+	if err := ValidateStateWithParams(next, p); err != nil {
+		return State{}, err
+	}
+	return next, nil
 }
