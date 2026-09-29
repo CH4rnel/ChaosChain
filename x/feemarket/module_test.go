@@ -148,3 +148,14 @@ func TestEndBlockRegulatesAgainstFinalizedBlockGas(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
+
+func FuzzValidateGenesisNeverPanics(f *testing.F) {
+	f.Add([]byte(mustMarshalGenesis(defaultGenesisState())))
+	f.Add([]byte("{"))
+	f.Add([]byte(`{"params":{},"state":{}}`))
+
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_ = (AppModule{}).ValidateGenesis(c, nil, data)
+	})
+}
