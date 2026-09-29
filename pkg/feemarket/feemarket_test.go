@@ -113,6 +113,16 @@ func TestValidateParamsRejectsOutOfRangeConfiguration(t *testing.T) {
 	}
 }
 
+func TestValidateStateWithParamsRejectsInvalidParameters(t *testing.T) {
+	params := DefaultParams()
+	params.GasTarget = 0
+
+	err := ValidateStateWithParams(State{BaseFee: 10}, params)
+	if err == nil {
+		t.Fatal("expected invalid parameters to be rejected")
+	}
+}
+
 func TestNextRejectsNonFiniteInputs(t *testing.T) {
 	tests := []struct {
 		name    string
