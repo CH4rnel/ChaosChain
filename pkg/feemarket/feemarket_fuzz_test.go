@@ -21,3 +21,26 @@ func FuzzValidateParams(f *testing.F) {
 		}
 	})
 }
+
+func FuzzNextPreservesStateInvariants(f *testing.F) {
+	f.Add(10.0, 0.0, 10_000_000.0, 0.1, 0.01, 10.0, 10_000_000.0)
+	f.Add(1.0, -10.0, 0.0, 0.0, 0.0, 0.0, 1.0)
+	f.Add(MaxBaseFee, 0.0, MaxGasUsed, MaxKp, MaxKi, MaxAntiWindup, MaxGasTarget)
+
+	f.Fuzz(func(t *testing.T, baseFee, acc, gasUsed, kp, ki, antiWindup, gasTarget float64) {
+		params := Params{
+			Kp:              kp,
+			Ki:              ki,
+			AntiWindupLimit: antiWindup,
+			GasTarget:       gasTarget,
+		}
+		previous := State{BaseFee: baseFee, Acc: acc}
+
+		next, err := Next(previous, gasUsed, params)
+		if err == nil {
+			if err := ValidateStateWithParams(next, params); err != nil {
+				t.Fatalf("Next returned invalid state %+v: %v", next, err)
+			}
+		}
+	})
+}
