@@ -189,3 +189,44 @@ func TestNextRejectsBaseFeeAboveConsensusLimit(t *testing.T) {
 		t.Fatal("expected calculated base fee above the consensus limit to be rejected")
 	}
 }
+
+func TestNextClampsExtremeRegulationExponent(t *testing.T) {
+	tests := []struct {
+		name   string
+		prev   State
+		gas    float64
+		params Params
+	}{
+		{
+			name:   "positive exponent",
+			prev:   State{BaseFee: 1e-300},
+			gas:    MaxGasUsed,
+			params: Params{Kp: MaxKp, AntiWindupLimit: 0, GasTarget: 1},
+		},
+		{
+			name:   "negative exponent",
+			prev:   State{BaseFee: 10, Acc: -MaxAntiWindup},
+			gas:    0,
+			params: Params{Ki: MaxKi, AntiWindupLimit: MaxAntiWindup, GasTarget: 1},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			next, err := Next(tt.prev, tt.gas, tt.params)
+			if err != nil {
+				t.Fatalf("expected clamped transition to remain valid: %v", err)
+			}
+			if math.IsNaN(next.BaseFee) || math.IsInf(next.BaseFee, 0) || next.BaseFee <= 0 {
+				t.Fatalf("clamped transition returned invalid base fee: %v", next.BaseFee)
+			}
+		})
+	}
+}
+
+func TestNextRejectsGasAboveConsensusLimit(t *testing.T) {
+	_, err := Next(State{BaseFee: 10}, MaxGasUsed+1, DefaultParams())
+	if err == nil {
+		t.Fatal("expected gas usage above the consensus limit to be rejected")
+	}
+}
