@@ -87,6 +87,32 @@ func TestDefaultParamsDefineOperationalGasTarget(t *testing.T) {
 	}
 }
 
+func TestValidateParamsRejectsOutOfRangeConfiguration(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Params)
+	}{
+		{"negative proportional gain", func(p *Params) { p.Kp = -0.1 }},
+		{"excessive proportional gain", func(p *Params) { p.Kp = MaxKp + 1 }},
+		{"negative integral gain", func(p *Params) { p.Ki = -0.1 }},
+		{"excessive integral gain", func(p *Params) { p.Ki = MaxKi + 1 }},
+		{"negative anti-windup limit", func(p *Params) { p.AntiWindupLimit = -0.1 }},
+		{"excessive anti-windup limit", func(p *Params) { p.AntiWindupLimit = MaxAntiWindup + 1 }},
+		{"zero gas target", func(p *Params) { p.GasTarget = 0 }},
+		{"excessive gas target", func(p *Params) { p.GasTarget = MaxGasTarget + 1 }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params := DefaultParams()
+			tt.mutate(&params)
+			if err := ValidateParams(params); err == nil {
+				t.Fatal("expected out-of-range parameters to be rejected")
+			}
+		})
+	}
+}
+
 func TestNextRejectsNonFiniteInputs(t *testing.T) {
 	tests := []struct {
 		name    string
