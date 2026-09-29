@@ -25,6 +25,24 @@ func newTestKeeper(t *testing.T) (sdk.Context, Keeper) {
 	return ctx, NewKeeper(cdc, runtime.NewKVStoreService(key))
 }
 
+func TestGetParamsReturnsDefaultWhenParamsAreMissing(t *testing.T) {
+	ctx, k := newTestKeeper(t)
+
+	params, err := k.GetParams(ctx)
+	require.NoError(t, err)
+	require.Equal(t, feemarket.DefaultParams(), params)
+}
+
+func TestSetParamsRejectsInvalidConfigurationWithoutPersistingIt(t *testing.T) {
+	ctx, k := newTestKeeper(t)
+	params := feemarket.DefaultParams()
+	params.GasTarget = 0
+
+	require.ErrorContains(t, k.SetParams(ctx, params), "validate fee market parameters")
+	_, err := k.Params.Get(ctx)
+	require.ErrorIs(t, err, collections.ErrNotFound)
+}
+
 func TestGetStateRejectsInvalidStoredParamsWhenStateIsMissing(t *testing.T) {
 	ctx, k := newTestKeeper(t)
 	params := feemarket.DefaultParams()
