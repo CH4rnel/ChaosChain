@@ -25,6 +25,26 @@ func newTestKeeper(t *testing.T) (sdk.Context, Keeper) {
 	return ctx, NewKeeper(cdc, runtime.NewKVStoreService(key))
 }
 
+func TestJSONCodecSupportsCollectionsSerializationContracts(t *testing.T) {
+	valueCodec := jsonCodec[domain.Params]{}
+	want := domain.DefaultParams()
+
+	encoded, err := valueCodec.EncodeJSON(want)
+	require.NoError(t, err)
+	got, err := valueCodec.DecodeJSON(encoded)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+	require.NotEmpty(t, valueCodec.Stringify(want))
+	require.Equal(t, "json", valueCodec.ValueType())
+}
+
+func TestJSONCodecRejectsMalformedJSON(t *testing.T) {
+	valueCodec := jsonCodec[domain.Params]{}
+
+	_, err := valueCodec.DecodeJSON([]byte("{"))
+	require.Error(t, err)
+}
+
 func TestGetParamsReturnsDefaultWhenParamsAreMissing(t *testing.T) {
 	ctx, k := newTestKeeper(t)
 
