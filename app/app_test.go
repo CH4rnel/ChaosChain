@@ -50,6 +50,12 @@ func TestGenesisIncludesValidatorRewardDistribution(t *testing.T) {
 	require.Contains(t, app.ModuleManager.Modules, "upgrade")
 }
 
+func TestDefaultGenesisPassesModuleValidation(t *testing.T) {
+	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
+
+	require.NoError(t, ModuleBasics().ValidateGenesis(app.AppCodec(), app.TxConfig(), app.DefaultGenesis()))
+}
+
 func TestMintGenesisParamsAndBeginBlockOrder(t *testing.T) {
 	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
 	genesis := app.DefaultGenesis()
