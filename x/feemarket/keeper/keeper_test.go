@@ -88,3 +88,31 @@ func TestSetStateDoesNotPersistAccumulatorOutsideConfiguredBounds(t *testing.T) 
 	_, err = k.State.Get(ctx)
 	require.ErrorIs(t, err, collections.ErrNotFound)
 }
+
+func TestGetStateRejectsInvalidPersistedState(t *testing.T) {
+	ctx, k := newTestKeeper(t)
+	require.NoError(t, k.Params.Set(ctx, feemarket.DefaultParams()))
+	require.NoError(t, k.State.Set(ctx, feemarket.State{}))
+
+	_, err := k.GetState(ctx)
+	require.ErrorContains(t, err, "validate stored fee market state")
+}
+
+func TestGetStateRejectsPersistedStateOutsideParameterBounds(t *testing.T) {
+	ctx, k := newTestKeeper(t)
+	params := feemarket.DefaultParams()
+	params.AntiWindupLimit = 2
+	require.NoError(t, k.Params.Set(ctx, params))
+	require.NoError(t, k.State.Set(ctx, feemarket.State{BaseFee: 10, Acc: 2.1}))
+
+	_, err := k.GetState(ctx)
+	require.ErrorContains(t, err, "accumulator exceeds anti-windup limit")
+}
+
+func TestSetStateRejectsInvalidStateWithoutPersistingIt(t *testing.T) {
+	ctx, k := newTestKeeper(t)
+
+	require.ErrorContains(t, k.SetState(ctx, feemarket.State{}), "validate fee market state")
+	_, err := k.State.Get(ctx)
+	require.ErrorIs(t, err, collections.ErrNotFound)
+}
