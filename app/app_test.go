@@ -40,9 +40,11 @@ func TestGenesisIncludesValidatorRewardDistribution(t *testing.T) {
 	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
 
 	require.Contains(t, app.DefaultGenesis(), "distribution")
+	require.Contains(t, app.DefaultGenesis(), "mint")
 	require.Contains(t, app.DefaultGenesis(), "gov")
 	require.Contains(t, app.DefaultGenesis(), "upgrade")
 	require.Contains(t, app.ModuleManager.Modules, "distribution")
+	require.Contains(t, app.ModuleManager.Modules, "mint")
 	require.Contains(t, app.ModuleManager.Modules, "gov")
 	require.Contains(t, app.ModuleManager.Modules, "upgrade")
 }
