@@ -8,6 +8,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
+	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,6 +48,28 @@ func TestGenesisIncludesValidatorRewardDistribution(t *testing.T) {
 	require.Contains(t, app.ModuleManager.Modules, "mint")
 	require.Contains(t, app.ModuleManager.Modules, "gov")
 	require.Contains(t, app.ModuleManager.Modules, "upgrade")
+}
+
+func TestMintGenesisParamsAndBeginBlockOrder(t *testing.T) {
+	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
+	genesis := app.DefaultGenesis()
+
+	var mintGenesis minttypes.GenesisState
+	app.AppCodec().MustUnmarshalJSON(genesis["mint"], &mintGenesis)
+	require.NoError(t, mintGenesis.Params.Validate())
+	require.NotEmpty(t, mintGenesis.Params.MintDenom)
+	require.NotEmpty(t, app.ModuleManager.OrderBeginBlockers)
+	require.Equal(t, "mint", app.ModuleManager.OrderBeginBlockers[0])
+	require.Less(t, indexOf(app.ModuleManager.OrderBeginBlockers, "mint"), indexOf(app.ModuleManager.OrderBeginBlockers, "distribution"))
+}
+
+func indexOf(values []string, target string) int {
+	for index, value := range values {
+		if value == target {
+			return index
+		}
+	}
+	return -1
 }
 
 func TestChaosChainAppInitGenesisRejectsEmptyValidatorSet(t *testing.T) {
