@@ -28,6 +28,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authmodule "github.com/cosmos/cosmos-sdk/x/auth"
+	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bankmodule "github.com/cosmos/cosmos-sdk/x/bank"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	distributionmodule "github.com/cosmos/cosmos-sdk/x/distribution"
@@ -35,6 +37,8 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	govmodule "github.com/cosmos/cosmos-sdk/x/gov"
+	mintmodule "github.com/cosmos/cosmos-sdk/x/mint"
+	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
 	slashingmodule "github.com/cosmos/cosmos-sdk/x/slashing"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingmodule "github.com/cosmos/cosmos-sdk/x/staking"
@@ -111,6 +115,7 @@ func NewChaosChainApp(
 		legacyAmino       *codec.LegacyAmino
 		txConfig          client.TxConfig
 		interfaceRegistry codectypes.InterfaceRegistry
+		accountKeeper     authkeeper.AccountKeeper
 		bankKeeper        bankkeeper.BaseKeeper
 		stakingKeeper     *stakingkeeper.Keeper
 		slashingKeeper    slashingkeeper.Keeper
@@ -127,6 +132,7 @@ func NewChaosChainApp(
 		&legacyAmino,
 		&txConfig,
 		&interfaceRegistry,
+		&accountKeeper,
 		&bankKeeper,
 		&stakingKeeper,
 		&slashingKeeper,
@@ -137,21 +143,33 @@ func NewChaosChainApp(
 	runtimeApp := appBuilder.Build(db, baseAppOptions...)
 	feeMarketKey := storetypes.NewKVStoreKey(feemarketmodule.ModuleName)
 	penaltyKey := storetypes.NewKVStoreKey(penaltymodule.ModuleName)
-	if err := runtimeApp.RegisterStores(feeMarketKey, penaltyKey); err != nil {
+	mintKey := storetypes.NewKVStoreKey("mint")
+	if err := runtimeApp.RegisterStores(feeMarketKey, penaltyKey, mintKey); err != nil {
 		panic(fmt.Errorf("register local module stores: %w", err))
 	}
 
 	feeMarketKeeper := feemarketkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(feeMarketKey))
 	penaltyKeeper := penaltykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(penaltyKey))
+	mintKeeper := mintkeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(mintKey),
+		stakingKeeper,
+		accountKeeper,
+		bankKeeper,
+		authtypes.FeeCollectorName,
+		authtypes.NewModuleAddress("gov").String(),
+	)
 	if err := runtimeApp.RegisterModules(
+		mintmodule.NewAppModule(appCodec, mintKeeper, accountKeeper, nil, nil),
 		feemarketmodule.NewAppModule(appCodec, feeMarketKeeper),
 		penaltymodule.NewAppModule(appCodec, penaltyKeeper),
 	); err != nil {
 		panic(fmt.Errorf("register local modules: %w", err))
 	}
 
-	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "distribution", "slashing", "gov", "upgrade", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "distribution", "slashing", "gov", "upgrade", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderBeginBlockers("mint", "distribution", "slashing", "staking", "bank")
+	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "mint", "distribution", "slashing", "gov", "upgrade", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "mint", "distribution", "slashing", "gov", "upgrade", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
 	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", "gov", feemarketmodule.ModuleName)
 
 	if err := runtimeApp.Load(loadLatest); err != nil {
@@ -262,6 +280,7 @@ func ModuleBasics() module.BasicManager {
 		authmodule.AppModuleBasic{},
 		bankmodule.AppModuleBasic{},
 		stakingmodule.AppModuleBasic{},
+		mintmodule.AppModuleBasic{},
 		distributionmodule.AppModuleBasic{},
 		govmodule.NewAppModuleBasic(nil),
 		upgrademodule.AppModuleBasic{},

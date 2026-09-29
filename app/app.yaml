@@ -4,10 +4,10 @@ modules:
       "@type": cosmos.app.runtime.v1alpha1.Module
       app_name: ChaosChain
       pre_blockers: [upgrade, auth, bank, staking, distribution, slashing, gov, genutil, feemarket, penalty]
-      begin_blockers: [distribution, slashing, staking, bank]
+      begin_blockers: [mint, distribution, slashing, staking, bank]
       end_blockers: [staking, bank, gov, feemarket]
-      init_genesis: [auth, bank, staking, distribution, slashing, gov, upgrade, genutil, feemarket, penalty]
-      export_genesis: [auth, bank, staking, distribution, slashing, gov, upgrade, genutil, feemarket, penalty]
+      init_genesis: [auth, bank, staking, mint, distribution, slashing, gov, upgrade, genutil, feemarket, penalty]
+      export_genesis: [auth, bank, staking, mint, distribution, slashing, gov, upgrade, genutil, feemarket, penalty]
   - name: auth
     config:
       "@type": cosmos.auth.module.v1.Module
@@ -21,6 +21,8 @@ modules:
           permissions: []
         - account: gov
           permissions: []
+        - account: mint
+          permissions: [minter]
   - name: bank
     config:
       "@type": cosmos.bank.module.v1.Module
