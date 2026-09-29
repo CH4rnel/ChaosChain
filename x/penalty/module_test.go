@@ -66,3 +66,14 @@ func TestKeeperRejectsInvalidStoredPenaltyConfiguration(t *testing.T) {
 	_, err := k.GetParams(ctx)
 	require.ErrorContains(t, err, "validate stored penalty parameters")
 }
+
+func FuzzValidateGenesisNeverPanics(f *testing.F) {
+	f.Add([]byte(mustMarshalGenesis(defaultGenesisState())))
+	f.Add([]byte("{"))
+	f.Add([]byte(`{"params":{}}`))
+
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_ = (AppModule{}).ValidateGenesis(c, nil, data)
+	})
+}
