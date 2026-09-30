@@ -47,24 +47,40 @@ func mustMarshalGenesis(genesis GenesisState) json.RawMessage {
 
 func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	var payload struct {
-		Params *struct {
-			BaseSlash *float64 `json:"base_slash"`
-			Kappa     *float64 `json:"kappa"`
-		} `json:"params"`
+		Params json.RawMessage `json:"params"`
 	}
 	if err := json.Unmarshal(bz, &payload); err != nil {
 		return GenesisState{}, fmt.Errorf("decode penalty genesis: %w", err)
 	}
-	if payload.Params == nil {
+	if len(payload.Params) == 0 {
 		return GenesisState{}, fmt.Errorf("missing penalty genesis params")
 	}
-	if payload.Params.BaseSlash == nil {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(payload.Params, &fields); err != nil {
+		return GenesisState{}, fmt.Errorf("decode penalty genesis params: %w", err)
+	}
+	if fields == nil {
+		return GenesisState{}, fmt.Errorf("missing penalty genesis params")
+	}
+	for name := range fields {
+		if name != "base_slash" && name != "kappa" {
+			return GenesisState{}, fmt.Errorf("unknown penalty genesis parameter: %s", name)
+		}
+	}
+	var params struct {
+		BaseSlash *float64 `json:"base_slash"`
+		Kappa     *float64 `json:"kappa"`
+	}
+	if err := json.Unmarshal(payload.Params, &params); err != nil {
+		return GenesisState{}, fmt.Errorf("decode penalty genesis params: %w", err)
+	}
+	if params.BaseSlash == nil {
 		return GenesisState{}, fmt.Errorf("missing penalty genesis parameter: base_slash")
 	}
-	if payload.Params.Kappa == nil {
+	if params.Kappa == nil {
 		return GenesisState{}, fmt.Errorf("missing penalty genesis parameter: kappa")
 	}
-	genesis := GenesisState{Params: domain.Params{BaseSlash: *payload.Params.BaseSlash, Kappa: *payload.Params.Kappa}}
+	genesis := GenesisState{Params: domain.Params{BaseSlash: *params.BaseSlash, Kappa: *params.Kappa}}
 	if err := domain.ValidateParams(genesis.Params); err != nil {
 		return GenesisState{}, fmt.Errorf("validate penalty genesis: %w", err)
 	}
