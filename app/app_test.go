@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/log/v2"
+	"github.com/CH4rnel/ChaosChain/pkg/feemarket"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
@@ -112,6 +113,21 @@ func TestModuleManagerOrderExecution(t *testing.T) {
 		app.ModuleManager.BeginBlock(ctx)
 		app.ModuleManager.EndBlock(ctx)
 	}, "ModuleManager lifecycle hooks must not panic")
+}
+
+func TestModuleManagerEndBlockPersistsFeeMarketTransition(t *testing.T) {
+	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
+	ctx := app.BaseApp.NewNextBlockContext(cmtproto.Header{Height: 1}).WithBlockGasUsed(20_000_000)
+	initial := feemarket.State{BaseFee: 10}
+	params := feemarket.DefaultParams()
+	want, err := feemarket.Next(initial, float64(ctx.BlockGasUsed()), params)
+	require.NoError(t, err)
+
+	_, err = app.ModuleManager.EndBlock(ctx)
+	require.NoError(t, err)
+	got, err := app.FeeMarketKeeper.GetState(ctx)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestRootCmdIncludesValidatorBootstrapCommands(t *testing.T) {
