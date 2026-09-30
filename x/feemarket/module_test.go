@@ -140,6 +140,45 @@ func TestValidateGenesisRejectsUnknownParameterAndStateFields(t *testing.T) {
 	}
 }
 
+func TestInitGenesisRejectsUnknownFieldsWithoutOverwritingStoredState(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+	}{
+		{
+			name: "parameter",
+			json: `{"params":{"kp":0.1,"ki":0.01,"anti_windup_limit":10,"gas_target":10000000,"kp_typo":0.2},"state":{"base_fee":20,"acc":1}}`,
+		},
+		{
+			name: "state",
+			json: `{"params":{"kp":0.1,"ki":0.01,"anti_windup_limit":10,"gas_target":10000000},"state":{"base_fee":20,"acc":1,"basefee":21}}`,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			key := storetypes.NewKVStoreKey(ModuleName)
+			testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
+			ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+			c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+			k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+			module := NewAppModule(c, k)
+			storedParams := domain.DefaultParams()
+			storedState := domain.State{BaseFee: 12, Acc: 0.5}
+			require.NoError(t, k.SetParams(ctx, storedParams))
+			require.NoError(t, k.SetState(ctx, storedState))
+
+			require.Panics(t, func() { module.InitGenesis(ctx, c, json.RawMessage(testCase.json)) })
+
+			gotParams, err := k.GetParams(ctx)
+			require.NoError(t, err)
+			require.Equal(t, storedParams, gotParams)
+			gotState, err := k.GetState(ctx)
+			require.NoError(t, err)
+			require.Equal(t, storedState, gotState)
+		})
+	}
+}
+
 func TestInitGenesisValidatesAllControllerDataBeforeWriting(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
