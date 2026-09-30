@@ -134,7 +134,20 @@ func TestModuleManagerEndBlockPersistsFeeMarketTransition(t *testing.T) {
 func TestRootCmdIncludesValidatorBootstrapCommands(t *testing.T) {
 	rootCmd := NewRootCmd()
 
-	for _, path := range [][]string{{"init"}, {"keys", "add"}, {"genesis", "gentx"}, {"genesis", "collect-gentxs"}, {"start"}, {"status"}} {
+	for _, path := range [][]string{
+		{"init"},
+		{"keys", "add"},
+		{"genesis", "gentx"},
+		{"genesis", "collect-gentxs"},
+		{"start"},
+		{"status"},
+		{"tx", "bank", "send"},
+		{"tx", "staking", "delegate"},
+		{"tx", "gov"},
+		{"query", "bank", "balances"},
+		{"query", "tx"},
+		{"query", "txs"},
+	} {
 		cmd, _, err := rootCmd.Find(path)
 		require.NoError(t, err)
 		require.NotNil(t, cmd, "command %v must be registered", path)

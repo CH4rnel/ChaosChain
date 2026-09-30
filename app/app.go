@@ -18,6 +18,7 @@ import (
 	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
 	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/codec"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -28,20 +29,26 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authmodule "github.com/cosmos/cosmos-sdk/x/auth"
+	authcli "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bankmodule "github.com/cosmos/cosmos-sdk/x/bank"
+	bankcli "github.com/cosmos/cosmos-sdk/x/bank/client/cli"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distributionmodule "github.com/cosmos/cosmos-sdk/x/distribution"
+	distributioncli "github.com/cosmos/cosmos-sdk/x/distribution/client/cli"
 	genutilmodule "github.com/cosmos/cosmos-sdk/x/genutil"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	govmodule "github.com/cosmos/cosmos-sdk/x/gov"
+	govcli "github.com/cosmos/cosmos-sdk/x/gov/client/cli"
 	mintmodule "github.com/cosmos/cosmos-sdk/x/mint"
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
 	slashingmodule "github.com/cosmos/cosmos-sdk/x/slashing"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingmodule "github.com/cosmos/cosmos-sdk/x/staking"
+	stakingcli "github.com/cosmos/cosmos-sdk/x/staking/client/cli"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	upgrademodule "github.com/cosmos/cosmos-sdk/x/upgrade"
 	"github.com/spf13/cobra"
@@ -268,7 +275,79 @@ func NewRootCmd() *cobra.Command {
 		DefaultNodeHome,
 	))
 	rootCmd.AddCommand(server.StatusCommand())
+	rootCmd.AddCommand(newTxCommand())
+	rootCmd.AddCommand(newQueryCommand())
 	return rootCmd
+}
+
+func newTxCommand() *cobra.Command {
+	accountCodec := addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+	validatorCodec := addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix())
+	txCmd := &cobra.Command{
+		Use:                        "tx",
+		Short:                      "Transactions subcommands",
+		DisableFlagParsing:         true,
+		SuggestionsMinimumDistance: 2,
+		RunE:                       client.ValidateCmd,
+	}
+	txCmd.AddCommand(
+		authcli.GetSignCommand(),
+		authcli.GetSignBatchCommand(),
+		authcli.GetMultiSignCommand(),
+		authcli.GetMultiSignBatchCmd(),
+		authcli.GetBroadcastCommand(),
+		authcli.GetEncodeCommand(),
+		authcli.GetValidateSignaturesCommand(),
+		bankcli.NewTxCmd(accountCodec),
+		stakingcli.NewTxCmd(validatorCodec, accountCodec),
+		govcli.NewTxCmd(nil),
+		distributioncli.NewTxCmd(validatorCodec, accountCodec),
+	)
+	return txCmd
+}
+
+func newQueryCommand() *cobra.Command {
+	queryCmd := &cobra.Command{
+		Use:     "query",
+		Aliases: []string{"q"},
+		Short:   "Querying subcommands",
+	}
+	queryCmd.AddCommand(
+		authcli.QueryTxCmd(),
+		authcli.QueryTxsByEventsCmd(),
+		newBankQueryCommand(),
+	)
+	return queryCmd
+}
+
+func newBankQueryCommand() *cobra.Command {
+	bankCmd := &cobra.Command{
+		Use:                        "bank",
+		Short:                      "Bank query subcommands",
+		DisableFlagParsing:         true,
+		SuggestionsMinimumDistance: 2,
+		RunE:                       client.ValidateCmd,
+	}
+	balancesCmd := &cobra.Command{
+		Use:   "balances [address]",
+		Short: "Query all balances for an account",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			queryClient := banktypes.NewQueryClient(clientCtx)
+			response, err := queryClient.AllBalances(cmd.Context(), &banktypes.QueryAllBalancesRequest{Address: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(response)
+		},
+	}
+	clientflags.AddQueryFlagsToCmd(balancesCmd)
+	bankCmd.AddCommand(balancesCmd)
+	return bankCmd
 }
 
 func newServerApp(logger log.Logger, db dbm.DB, opts servertypes.AppOptions) servertypes.Application {
