@@ -47,7 +47,10 @@ func mustMarshalGenesis(genesis GenesisState) json.RawMessage {
 
 func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	var payload struct {
-		Params *domain.Params `json:"params"`
+		Params *struct {
+			BaseSlash *float64 `json:"base_slash"`
+			Kappa     *float64 `json:"kappa"`
+		} `json:"params"`
 	}
 	if err := json.Unmarshal(bz, &payload); err != nil {
 		return GenesisState{}, fmt.Errorf("decode penalty genesis: %w", err)
@@ -55,7 +58,13 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	if payload.Params == nil {
 		return GenesisState{}, fmt.Errorf("missing penalty genesis params")
 	}
-	genesis := GenesisState{Params: *payload.Params}
+	if payload.Params.BaseSlash == nil {
+		return GenesisState{}, fmt.Errorf("missing penalty genesis parameter: base_slash")
+	}
+	if payload.Params.Kappa == nil {
+		return GenesisState{}, fmt.Errorf("missing penalty genesis parameter: kappa")
+	}
+	genesis := GenesisState{Params: domain.Params{BaseSlash: *payload.Params.BaseSlash, Kappa: *payload.Params.Kappa}}
 	if err := domain.ValidateParams(genesis.Params); err != nil {
 		return GenesisState{}, fmt.Errorf("validate penalty genesis: %w", err)
 	}
