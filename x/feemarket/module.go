@@ -50,6 +50,27 @@ func mustMarshalGenesis(genesis GenesisState) json.RawMessage {
 	return bz
 }
 
+func rejectUnknownGenesisFields(bz json.RawMessage, objectName, scope string, allowed ...string) error {
+	var objects map[string]json.RawMessage
+	if err := json.Unmarshal(bz, &objects); err != nil {
+		return fmt.Errorf("decode fee market genesis: %w", err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(objects[objectName], &fields); err != nil {
+		return fmt.Errorf("decode fee market genesis %s: %w", scope, err)
+	}
+	known := make(map[string]struct{}, len(allowed))
+	for _, name := range allowed {
+		known[name] = struct{}{}
+	}
+	for name := range fields {
+		if _, ok := known[name]; !ok {
+			return fmt.Errorf("unknown fee market genesis %s: %s", scope, name)
+		}
+	}
+	return nil
+}
+
 func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	var payload struct {
 		Params *struct {
@@ -69,6 +90,9 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	if payload.Params == nil {
 		return GenesisState{}, fmt.Errorf("missing fee market genesis params")
 	}
+	if err := rejectUnknownGenesisFields(bz, "params", "parameter", "kp", "ki", "anti_windup_limit", "gas_target"); err != nil {
+		return GenesisState{}, err
+	}
 	params := payload.Params
 	if params.Kp == nil {
 		return GenesisState{}, fmt.Errorf("missing fee market genesis parameter: kp")
@@ -84,6 +108,9 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	}
 	if payload.State == nil {
 		return GenesisState{}, fmt.Errorf("missing fee market genesis state")
+	}
+	if err := rejectUnknownGenesisFields(bz, "state", "state field", "base_fee", "acc"); err != nil {
+		return GenesisState{}, err
 	}
 	if payload.State.BaseFee == nil {
 		return GenesisState{}, fmt.Errorf("missing fee market genesis state field: base_fee")
