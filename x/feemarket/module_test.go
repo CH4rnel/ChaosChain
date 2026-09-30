@@ -83,6 +83,16 @@ func TestValidateGenesisRequiresEveryFeeMarketParameter(t *testing.T) {
 	}
 }
 
+func TestValidateGenesisAcceptsExplicitZeroControllerParameters(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	genesis := GenesisState{
+		Params: domain.Params{GasTarget: 10_000_000},
+		State:  domain.State{BaseFee: 10},
+	}
+
+	require.NoError(t, (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis)))
+}
+
 func TestInitGenesisValidatesAllControllerDataBeforeWriting(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
