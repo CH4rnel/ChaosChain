@@ -68,6 +68,21 @@ func TestValidateGenesisRejectsAccumulatorOutsideAntiWindupBounds(t *testing.T) 
 	require.ErrorContains(t, err, "accumulator exceeds anti-windup limit")
 }
 
+func TestValidateGenesisRequiresEveryFeeMarketParameter(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	for _, params := range []string{
+		`{"ki":0.01,"anti_windup_limit":10,"gas_target":10000000}`,
+		`{"kp":0.1,"anti_windup_limit":10,"gas_target":10000000}`,
+		`{"kp":0.1,"ki":0.01,"gas_target":10000000}`,
+		`{"kp":0.1,"ki":0.01,"anti_windup_limit":10}`,
+		`{"kp":null,"ki":0.01,"anti_windup_limit":10,"gas_target":10000000}`,
+	} {
+		genesis := json.RawMessage(`{"params":` + params + `,"state":{"base_fee":10}}`)
+		err := (AppModule{}).ValidateGenesis(c, nil, genesis)
+		require.ErrorContains(t, err, "missing fee market genesis parameter")
+	}
+}
+
 func TestInitGenesisValidatesAllControllerDataBeforeWriting(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
