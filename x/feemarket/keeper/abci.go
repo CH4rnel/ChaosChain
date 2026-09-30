@@ -4,6 +4,7 @@ package keeper
 import (
 	"context"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/CH4rnel/ChaosChain/pkg/feemarket"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -13,7 +14,7 @@ func (k Keeper) EndBlock(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	// 1. Gather block data
-	gasUsed := float64(sdkCtx.BlockGasUsed())
+	gasUsed := sdkmath.LegacyNewDecFromInt(sdkmath.NewIntFromUint64(sdkCtx.BlockGasUsed()))
 
 	// 2. Fetch current state and params from KVStore
 	params, err := k.GetParams(ctx)

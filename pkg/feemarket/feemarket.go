@@ -1,72 +1,72 @@
-// Package feemarket implements a PI-regulator based dynamic fee market
+// Package feemarket implements a deterministic fixed-point dynamic fee market.
 package feemarket
 
 import (
 	"errors"
-	"math"
+
+	sdkmath "cosmossdk.io/math"
 )
 
-// Maximum reasonable limits for parameters (protection against float64 overflow)
-const (
-	MaxBaseFee    = 1e18 // An absurdly large commission (1 quintillion)
-	MaxGasUsed    = 1e15 // Unrealistic volume of gas
-	MaxGasTarget  = 1e15
-	MaxKp         = 100.0 // Extreme proportional coefficient
-	MaxKi         = 100.0 // Extreme integral coefficient
-	MaxAntiWindup = 1e6   // Extreme battery limit
+var (
+	maxBaseFee    = sdkmath.LegacyNewDec(1_000_000_000_000_000_000)
+	maxGasUsed    = sdkmath.LegacyNewDec(1_000_000_000_000_000)
+	maxGasTarget  = sdkmath.LegacyNewDec(1_000_000_000_000_000)
+	maxKp         = sdkmath.LegacyNewDec(100)
+	maxKi         = sdkmath.LegacyNewDec(100)
+	maxAntiWindup = sdkmath.LegacyNewDec(1_000_000)
+	maxStep       = sdkmath.LegacyNewDecWithPrec(125, 3) // Limit changes to 12.5% per block.
+	minBaseFee    = sdkmath.LegacySmallestDec()
+	one           = sdkmath.LegacyOneDec()
+	zero          = sdkmath.LegacyZeroDec()
 )
 
-// Params holds the configuration for the PI-regulator.
+// Params holds the configuration for the fixed-point PI regulator.
 type Params struct {
-	Kp              float64 `json:"kp"`
-	Ki              float64 `json:"ki"`
-	AntiWindupLimit float64 `json:"anti_windup_limit"`
-	GasTarget       float64 `json:"gas_target"`
+	Kp              sdkmath.LegacyDec `json:"kp"`
+	Ki              sdkmath.LegacyDec `json:"ki"`
+	AntiWindupLimit sdkmath.LegacyDec `json:"anti_windup_limit"`
+	GasTarget       sdkmath.LegacyDec `json:"gas_target"`
 }
 
 func DefaultParams() Params {
-	return Params{Kp: 0.1, Ki: 0.01, AntiWindupLimit: 10, GasTarget: 10_000_000}
+	return Params{
+		Kp:              sdkmath.LegacyNewDecWithPrec(1, 1),
+		Ki:              sdkmath.LegacyNewDecWithPrec(1, 2),
+		AntiWindupLimit: sdkmath.LegacyNewDec(10),
+		GasTarget:       sdkmath.LegacyNewDec(10_000_000),
+	}
+}
+
+func decimalOrZero(value sdkmath.LegacyDec) sdkmath.LegacyDec {
+	if value.IsNil() {
+		return zero
+	}
+	return value
 }
 
 func ValidateParams(p Params) error {
-	values := []struct {
-		name  string
-		value float64
-	}{
-		{"kp", p.Kp},
-		{"ki", p.Ki},
-		{"antiWindupLimit", p.AntiWindupLimit},
-		{"gasTarget", p.GasTarget},
-	}
-	for _, item := range values {
-		if math.IsNaN(item.value) || math.IsInf(item.value, 0) {
-			return errors.New(item.name + " must be finite")
-		}
-	}
-	if p.GasTarget <= 0 || p.GasTarget > MaxGasTarget {
+	kp := decimalOrZero(p.Kp)
+	ki := decimalOrZero(p.Ki)
+	antiWindup := decimalOrZero(p.AntiWindupLimit)
+	gasTarget := decimalOrZero(p.GasTarget)
+	if gasTarget.IsNil() || !gasTarget.IsPositive() || gasTarget.GT(maxGasTarget) {
 		return errors.New("gasTarget out of valid range (0, MaxGasTarget]")
 	}
-	if p.Kp < 0 || p.Kp > MaxKp {
+	if kp.IsNegative() || kp.GT(maxKp) {
 		return errors.New("kp out of valid range [0, MaxKp]")
 	}
-	if p.Ki < 0 || p.Ki > MaxKi {
+	if ki.IsNegative() || ki.GT(maxKi) {
 		return errors.New("ki out of valid range [0, MaxKi]")
 	}
-	if p.AntiWindupLimit < 0 || p.AntiWindupLimit > MaxAntiWindup {
+	if antiWindup.IsNegative() || antiWindup.GT(maxAntiWindup) {
 		return errors.New("antiWindupLimit out of valid range [0, MaxAntiWindup]")
 	}
 	return nil
 }
 
 func ValidateState(state State) error {
-	if math.IsNaN(state.BaseFee) || math.IsInf(state.BaseFee, 0) {
-		return errors.New("baseFee must be finite")
-	}
-	if state.BaseFee <= 0 || state.BaseFee > MaxBaseFee {
+	if state.BaseFee.IsNil() || !state.BaseFee.IsPositive() || state.BaseFee.GT(maxBaseFee) {
 		return errors.New("baseFee out of valid range (0, MaxBaseFee]")
-	}
-	if math.IsNaN(state.Acc) || math.IsInf(state.Acc, 0) {
-		return errors.New("accumulator must be finite")
 	}
 	return nil
 }
@@ -78,7 +78,9 @@ func ValidateStateWithParams(state State, params Params) error {
 	if err := ValidateState(state); err != nil {
 		return err
 	}
-	if state.Acc < -params.AntiWindupLimit || state.Acc > params.AntiWindupLimit {
+	acc := decimalOrZero(state.Acc)
+	limit := decimalOrZero(params.AntiWindupLimit)
+	if acc.GT(limit) || acc.LT(limit.Neg()) {
 		return errors.New("accumulator exceeds anti-windup limit")
 	}
 	return nil
@@ -86,59 +88,46 @@ func ValidateStateWithParams(state State, params Params) error {
 
 // State represents the current fee market state.
 type State struct {
-	BaseFee float64 `json:"base_fee"`
-	Acc     float64 `json:"acc"`
+	BaseFee sdkmath.LegacyDec `json:"base_fee"`
+	Acc     sdkmath.LegacyDec `json:"acc"`
 }
 
-// Next calculates the next block's fee market state based on the PI-regulator.
-func Next(prev State, gasUsed float64, p Params) (State, error) {
+// Next computes the next fee market state with deterministic fixed-point math.
+func Next(prev State, gasUsed sdkmath.LegacyDec, p Params) (State, error) {
 	if err := ValidateParams(p); err != nil {
 		return State{}, err
 	}
 	if err := ValidateStateWithParams(prev, p); err != nil {
 		return State{}, err
 	}
-	if math.IsNaN(gasUsed) || math.IsInf(gasUsed, 0) {
-		return State{}, errors.New("gasUsed must be finite")
-	}
-	if gasUsed < 0 || gasUsed > MaxGasUsed {
+	if gasUsed.IsNil() || gasUsed.IsNegative() || gasUsed.GT(maxGasUsed) {
 		return State{}, errors.New("gasUsed out of valid range [0, MaxGasUsed]")
 	}
 
-	// 3. Calculate regulation error
-	e := (gasUsed / p.GasTarget) - 1.0
-
-	// 4. Update accumulated error
-	acc := prev.Acc + e
-
-	// 5. Anti-windup clamping
-	if acc > p.AntiWindupLimit {
-		acc = p.AntiWindupLimit
-	} else if acc < -p.AntiWindupLimit {
-		acc = -p.AntiWindupLimit
+	gasTarget := decimalOrZero(p.GasTarget)
+	e := gasUsed.Quo(gasTarget).Sub(one)
+	acc := decimalOrZero(prev.Acc).Add(e)
+	antiWindup := decimalOrZero(p.AntiWindupLimit)
+	if acc.GT(antiWindup) {
+		acc = antiWindup
+	} else if acc.LT(antiWindup.Neg()) {
+		acc = antiWindup.Neg()
 	}
 
-	// 6. Calculate next base fee using exponential PI control
-	exponent := p.Kp*e + p.Ki*acc
-
-	// exp() overflow protection
-	if exponent > 700 { // exp(700) ≈ 1e+304, close to MaxFloat64
-		exponent = 700
-	} else if exponent < -700 {
-		exponent = -700
+	step := decimalOrZero(p.Kp).Mul(e).Add(decimalOrZero(p.Ki).Mul(acc))
+	if step.GT(maxStep) {
+		step = maxStep
+	} else if step.LT(maxStep.Neg()) {
+		step = maxStep.Neg()
+	}
+	baseFeeNext := prev.BaseFee.Mul(one.Add(step))
+	if baseFeeNext.LT(minBaseFee) {
+		baseFeeNext = minBaseFee
+	} else if baseFeeNext.GT(maxBaseFee) {
+		baseFeeNext = maxBaseFee
 	}
 
-	baseFeeNext := prev.BaseFee * math.Exp(exponent)
-
-	// 7. Final safety check: ensure result is finite and positive
-	if math.IsInf(baseFeeNext, 0) || math.IsNaN(baseFeeNext) || baseFeeNext <= 0 {
-		return State{}, errors.New("calculated baseFee is not finite or positive")
-	}
-
-	next := State{
-		BaseFee: baseFeeNext,
-		Acc:     acc,
-	}
+	next := State{BaseFee: baseFeeNext, Acc: acc}
 	if err := ValidateStateWithParams(next, p); err != nil {
 		return State{}, err
 	}

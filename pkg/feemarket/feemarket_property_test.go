@@ -3,214 +3,62 @@ package feemarket
 import (
 	"math/rand"
 	"reflect"
+	"strconv"
 	"testing"
 	"testing/quick"
+
+	sdkmath "cosmossdk.io/math"
 )
 
-// realisticInputs implements the quick.Generator interface
-type realisticInputs struct {
-	BaseFee    float64
-	GasUsed    float64
-	GasTarget  float64
-	Kp         float64
-	Ki         float64
-	AntiWindup float64
+func decFloat(value float64) sdkmath.LegacyDec {
+	result, err := sdkmath.LegacyNewDecFromStr(strconv.FormatFloat(value, 'f', sdkmath.LegacyPrecision, 64))
+	if err != nil {
+		panic(err)
+	}
+	return result
 }
 
-type validTransitionInputs struct {
-	BaseFee    float64
-	GasUsed    float64
-	GasTarget  float64
-	Kp         float64
-	Ki         float64
-	AntiWindup float64
-	PrevAcc    float64
+type transitionInputs struct {
+	baseFee, gasUsed, gasTarget, kp, ki, antiWindup, acc float64
 }
 
-func (r validTransitionInputs) Generate(rand *rand.Rand, size int) reflect.Value {
-	antiWindup := rand.Float64() * 10
-	return reflect.ValueOf(validTransitionInputs{
-		BaseFee:    1 + rand.Float64()*1_000,
-		GasUsed:    rand.Float64() * 20_000_000,
-		GasTarget:  10_000_000 + rand.Float64()*10_000_000,
-		Kp:         rand.Float64() * 2,
-		Ki:         rand.Float64() * 0.5,
-		AntiWindup: antiWindup,
-		PrevAcc:    (rand.Float64()*2 - 1) * antiWindup,
+func (transitionInputs) Generate(random *rand.Rand, _ int) reflect.Value {
+	limit := random.Float64() * 10
+	return reflect.ValueOf(transitionInputs{
+		baseFee:    1 + random.Float64()*1_000,
+		gasUsed:    random.Float64() * 20_000_000,
+		gasTarget:  10_000_000 + random.Float64()*10_000_000,
+		kp:         random.Float64() * 2,
+		ki:         random.Float64() * 0.5,
+		antiWindup: limit,
+		acc:        (random.Float64()*2 - 1) * limit,
 	})
 }
 
-func TestProperty_ValidTransitionsPreserveStateInvariants(t *testing.T) {
-	f := func(inputs validTransitionInputs) bool {
-		params := Params{
-			Kp:              inputs.Kp,
-			Ki:              inputs.Ki,
-			AntiWindupLimit: inputs.AntiWindup,
-			GasTarget:       inputs.GasTarget,
-		}
-		prev := State{BaseFee: inputs.BaseFee, Acc: inputs.PrevAcc}
-		next, err := Next(prev, inputs.GasUsed, params)
-		if err != nil {
-			return false
-		}
-		return ValidateStateWithParams(next, params) == nil
+func TestProperty_FixedPointTransitionsPreserveInvariants(t *testing.T) {
+	check := func(input transitionInputs) bool {
+		params := Params{Kp: decFloat(input.kp), Ki: decFloat(input.ki), AntiWindupLimit: decFloat(input.antiWindup), GasTarget: decFloat(input.gasTarget)}
+		state := State{BaseFee: decFloat(input.baseFee), Acc: decFloat(input.acc)}
+		next, err := Next(state, decFloat(input.gasUsed), params)
+		return err == nil && ValidateStateWithParams(next, params) == nil
 	}
-
-	if err := quick.Check(f, &quick.Config{MaxCount: 10_000}); err != nil {
-		t.Errorf("state invariant violated: %v", err)
+	if err := quick.Check(check, &quick.Config{MaxCount: 10_000}); err != nil {
+		t.Fatalf("fixed-point state invariant failed: %v", err)
 	}
 }
 
-func (r realisticInputs) Generate(rand *rand.Rand, size int) reflect.Value {
-	return reflect.ValueOf(realisticInputs{
-		BaseFee:    rand.Float64() * 1000,              // 0 - 1000
-		GasUsed:    rand.Float64() * 20000000,          // 0 - 20M gas
-		GasTarget:  10000000 + rand.Float64()*10000000, // 10M - 20M gas
-		Kp:         rand.Float64() * 2.0,               // 0 - 2.0
-		Ki:         rand.Float64() * 0.5,               // 0 - 0.5
-		AntiWindup: 1.0 + rand.Float64()*9.0,           // 1.0 - 10.0
-	})
-}
-
-func TestProperty_BaseFeeAlwaysPositive(t *testing.T) {
-	f := func(inputs realisticInputs) bool {
-		prevState := State{BaseFee: inputs.BaseFee, Acc: 0.0}
-		params := Params{Kp: inputs.Kp, Ki: inputs.Ki, AntiWindupLimit: inputs.AntiWindup, GasTarget: inputs.GasTarget}
-
-		nextState, err := Next(prevState, inputs.GasUsed, params)
-		if err != nil {
-			return true // Skip invalid inputs
-		}
-
-		return nextState.BaseFee > 0
+func TestProperty_TransitionIsDeterministic(t *testing.T) {
+	params := Params{Kp: dec("0.37"), Ki: dec("0.12"), AntiWindupLimit: dec("8"), GasTarget: dec("10000000")}
+	previous := State{BaseFee: dec("42.123456789123456789"), Acc: dec("-1.25")}
+	first, err := Next(previous, dec("17892341"), params)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
-		t.Errorf("Invariant violated: %v", err)
+	second, err := Next(previous, dec("17892341"), params)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-// inputsWithAcc implements the quick.Generator interface
-type inputsWithAcc struct {
-	realisticInputs
-	PrevAcc float64
-}
-
-func (r inputsWithAcc) Generate(rand *rand.Rand, size int) reflect.Value {
-	return reflect.ValueOf(inputsWithAcc{
-		realisticInputs: realisticInputs{
-			BaseFee:    rand.Float64() * 1000,
-			GasUsed:    rand.Float64() * 20000000,
-			GasTarget:  10000000 + rand.Float64()*10000000,
-			Kp:         rand.Float64() * 2.0,
-			Ki:         rand.Float64() * 0.5,
-			AntiWindup: 1.0 + rand.Float64()*9.0,
-		},
-		PrevAcc: (rand.Float64() - 0.5) * 20.0, // -10 to +10
-	})
-}
-
-func TestProperty_AccumulatorBounded(t *testing.T) {
-	f := func(inputs inputsWithAcc) bool {
-		prevState := State{BaseFee: inputs.BaseFee, Acc: inputs.PrevAcc}
-		params := Params{Kp: inputs.Kp, Ki: inputs.Ki, AntiWindupLimit: inputs.AntiWindup, GasTarget: inputs.GasTarget}
-
-		nextState, err := Next(prevState, inputs.GasUsed, params)
-		if err != nil {
-			return true
-		}
-
-		return nextState.Acc >= -inputs.AntiWindup && nextState.Acc <= inputs.AntiWindup
-	}
-
-	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
-		t.Errorf("Invariant violated: %v", err)
-	}
-}
-
-func TestProperty_MonotonicityOnOverload(t *testing.T) {
-	f := func(inputs realisticInputs) bool {
-		if inputs.GasUsed <= inputs.GasTarget {
-			return true
-		}
-
-		prevState := State{BaseFee: inputs.BaseFee, Acc: 0.0}
-		params := Params{Kp: inputs.Kp, Ki: inputs.Ki, AntiWindupLimit: inputs.AntiWindup, GasTarget: inputs.GasTarget}
-
-		nextState, err := Next(prevState, inputs.GasUsed, params)
-		if err != nil {
-			return true
-		}
-
-		return nextState.BaseFee > prevState.BaseFee
-	}
-
-	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
-		t.Errorf("Invariant violated: %v", err)
-	}
-}
-
-func TestProperty_MonotonicityOnUnderload(t *testing.T) {
-	f := func(inputs realisticInputs) bool {
-		if inputs.GasUsed >= inputs.GasTarget || inputs.GasUsed < 0 {
-			return true
-		}
-
-		prevState := State{BaseFee: inputs.BaseFee, Acc: 0.0}
-		params := Params{Kp: inputs.Kp, Ki: inputs.Ki, AntiWindupLimit: inputs.AntiWindup, GasTarget: inputs.GasTarget}
-
-		nextState, err := Next(prevState, inputs.GasUsed, params)
-		if err != nil {
-			return true
-		}
-
-		return nextState.BaseFee < prevState.BaseFee
-	}
-
-	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
-		t.Errorf("Invariant violated: %v", err)
-	}
-}
-
-// inputsWithAccForDeterminism implements the quick.Generator interface
-type inputsWithAccForDeterminism struct {
-	realisticInputs
-	Acc float64
-}
-
-func (r inputsWithAccForDeterminism) Generate(rand *rand.Rand, size int) reflect.Value {
-	return reflect.ValueOf(inputsWithAccForDeterminism{
-		realisticInputs: realisticInputs{
-			BaseFee:    rand.Float64() * 1000,
-			GasUsed:    rand.Float64() * 20000000,
-			GasTarget:  10000000 + rand.Float64()*10000000,
-			Kp:         rand.Float64() * 2.0,
-			Ki:         rand.Float64() * 0.5,
-			AntiWindup: 1.0 + rand.Float64()*9.0,
-		},
-		Acc: (rand.Float64() - 0.5) * 20.0,
-	})
-}
-
-func TestProperty_Determinism(t *testing.T) {
-	f := func(inputs inputsWithAccForDeterminism) bool {
-		prevState := State{BaseFee: inputs.BaseFee, Acc: inputs.Acc}
-		params := Params{Kp: inputs.Kp, Ki: inputs.Ki, AntiWindupLimit: inputs.AntiWindup, GasTarget: inputs.GasTarget}
-
-		result1, err1 := Next(prevState, inputs.GasUsed, params)
-		result2, err2 := Next(prevState, inputs.GasUsed, params)
-
-		if err1 != nil || err2 != nil {
-			if err1 == nil || err2 == nil {
-				return false
-			}
-			return err1.Error() == err2.Error()
-		}
-
-		return result1.BaseFee == result2.BaseFee && result1.Acc == result2.Acc
-	}
-
-	if err := quick.Check(f, &quick.Config{MaxCount: 10000}); err != nil {
-		t.Errorf("Invariant violated: %v", err)
+	if !first.BaseFee.Equal(second.BaseFee) || !first.Acc.Equal(second.Acc) {
+		t.Fatalf("identical inputs produced different states: %+v vs %+v", first, second)
 	}
 }

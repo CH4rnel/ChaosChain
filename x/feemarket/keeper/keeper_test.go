@@ -1,10 +1,12 @@
 package keeper
 
 import (
+	"strings"
 	"testing"
 
 	"cosmossdk.io/collections"
 	"cosmossdk.io/log/v2"
+	sdkmath "cosmossdk.io/math"
 	"github.com/CH4rnel/ChaosChain/pkg/feemarket"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -14,6 +16,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
+
+func d(value string) sdkmath.LegacyDec {
+	result, err := sdkmath.LegacyNewDecFromStr(strings.ReplaceAll(value, "_", ""))
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
 
 func newTestKeeper(t *testing.T) (sdk.Context, Keeper) {
 	t.Helper()
@@ -56,7 +66,7 @@ func TestGetParamsReturnsDefaultWhenParamsAreMissing(t *testing.T) {
 func TestSetParamsRejectsInvalidConfigurationWithoutPersistingIt(t *testing.T) {
 	ctx, k := newTestKeeper(t)
 	params := feemarket.DefaultParams()
-	params.GasTarget = 0
+	params.GasTarget = d("0")
 
 	require.ErrorContains(t, k.SetParams(ctx, params), "validate fee market parameters")
 	_, err := k.Params.Get(ctx)
@@ -66,7 +76,7 @@ func TestSetParamsRejectsInvalidConfigurationWithoutPersistingIt(t *testing.T) {
 func TestGetStateRejectsInvalidStoredParamsWhenStateIsMissing(t *testing.T) {
 	ctx, k := newTestKeeper(t)
 	params := feemarket.DefaultParams()
-	params.GasTarget = 0
+	params.GasTarget = d("0")
 	require.NoError(t, k.Params.Set(ctx, params))
 
 	_, err := k.GetState(ctx)
@@ -78,13 +88,13 @@ func TestGetStateReturnsDefaultWhenStateAndParamsAreMissing(t *testing.T) {
 
 	state, err := k.GetState(ctx)
 	require.NoError(t, err)
-	require.Equal(t, feemarket.State{BaseFee: 10}, state)
+	require.Equal(t, feemarket.State{BaseFee: d("10"), Acc: d("0")}, state)
 }
 
 func TestKeeperPersistsValidControllerParamsAndState(t *testing.T) {
 	ctx, k := newTestKeeper(t)
-	params := feemarket.Params{Kp: 0.2, Ki: 0.03, AntiWindupLimit: 7, GasTarget: 15_000_000}
-	state := feemarket.State{BaseFee: 25, Acc: 0.5}
+	params := feemarket.Params{Kp: d("0.2"), Ki: d("0.03"), AntiWindupLimit: d("7"), GasTarget: d("15000000")}
+	state := feemarket.State{BaseFee: d("25"), Acc: d("0.5")}
 
 	require.NoError(t, k.SetParams(ctx, params))
 	require.NoError(t, k.SetState(ctx, state))
@@ -100,10 +110,10 @@ func TestKeeperPersistsValidControllerParamsAndState(t *testing.T) {
 func TestSetStateDoesNotPersistAccumulatorOutsideConfiguredBounds(t *testing.T) {
 	ctx, k := newTestKeeper(t)
 	params := feemarket.DefaultParams()
-	params.AntiWindupLimit = 2
+	params.AntiWindupLimit = d("2")
 	require.NoError(t, k.SetParams(ctx, params))
 
-	err := k.SetState(ctx, feemarket.State{BaseFee: 10, Acc: 2.1})
+	err := k.SetState(ctx, feemarket.State{BaseFee: d("10"), Acc: d("2.1")})
 	require.ErrorContains(t, err, "accumulator exceeds anti-windup limit")
 	_, err = k.State.Get(ctx)
 	require.ErrorIs(t, err, collections.ErrNotFound)
@@ -121,9 +131,9 @@ func TestGetStateRejectsInvalidPersistedState(t *testing.T) {
 func TestGetStateRejectsPersistedStateOutsideParameterBounds(t *testing.T) {
 	ctx, k := newTestKeeper(t)
 	params := feemarket.DefaultParams()
-	params.AntiWindupLimit = 2
+	params.AntiWindupLimit = d("2")
 	require.NoError(t, k.Params.Set(ctx, params))
-	require.NoError(t, k.State.Set(ctx, feemarket.State{BaseFee: 10, Acc: 2.1}))
+	require.NoError(t, k.State.Set(ctx, feemarket.State{BaseFee: d("10"), Acc: d("2.1")}))
 
 	_, err := k.GetState(ctx)
 	require.ErrorContains(t, err, "accumulator exceeds anti-windup limit")
@@ -141,10 +151,10 @@ func TestEndBlockPersistsTransitionUsingFinalizedBlockGas(t *testing.T) {
 	ctx, k := newTestKeeper(t)
 	ctx = ctx.WithBlockGasUsed(20_000_000)
 	params := feemarket.DefaultParams()
-	initial := feemarket.State{BaseFee: 10, Acc: 0}
+	initial := feemarket.State{BaseFee: d("10"), Acc: d("0")}
 	require.NoError(t, k.SetParams(ctx, params))
 	require.NoError(t, k.SetState(ctx, initial))
-	want, err := feemarket.Next(initial, float64(ctx.BlockGasUsed()), params)
+	want, err := feemarket.Next(initial, sdkmath.LegacyNewDecFromInt(sdkmath.NewIntFromUint64(ctx.BlockGasUsed())), params)
 	require.NoError(t, err)
 
 	require.NoError(t, k.EndBlock(ctx))
@@ -163,21 +173,21 @@ func TestEndBlockRejectsInvalidInputsWithoutChangingStoredState(t *testing.T) {
 	}{
 		{
 			name:          "invalid persisted parameters",
-			params:        feemarket.Params{GasTarget: 0},
-			state:         feemarket.State{BaseFee: 10},
+			params:        feemarket.Params{Kp: d("0"), Ki: d("0"), AntiWindupLimit: d("0"), GasTarget: d("0")},
+			state:         feemarket.State{BaseFee: d("10"), Acc: d("0")},
 			expectedError: "validate stored fee market parameters",
 		},
 		{
 			name:          "invalid persisted state",
 			params:        feemarket.DefaultParams(),
-			state:         feemarket.State{},
+			state:         feemarket.State{BaseFee: d("0"), Acc: d("0")},
 			expectedError: "validate stored fee market state",
 		},
 		{
 			name:          "gas above consensus limit",
-			gasUsed:       uint64(feemarket.MaxGasUsed) + 1,
+			gasUsed:       1_000_000_000_000_001,
 			params:        feemarket.DefaultParams(),
-			state:         feemarket.State{BaseFee: 10},
+			state:         feemarket.State{BaseFee: d("10"), Acc: d("0")},
 			expectedError: "gasUsed out of valid range",
 		},
 	}

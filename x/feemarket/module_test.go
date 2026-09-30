@@ -2,9 +2,11 @@ package feemarket
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"cosmossdk.io/log/v2"
+	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -16,6 +18,14 @@ import (
 	"github.com/CH4rnel/ChaosChain/x/feemarket/keeper"
 )
 
+func d(value string) sdkmath.LegacyDec {
+	result, err := sdkmath.LegacyNewDecFromStr(strings.ReplaceAll(value, "_", ""))
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
+
 func TestGenesisRoundTrip(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
@@ -24,8 +34,8 @@ func TestGenesisRoundTrip(t *testing.T) {
 	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
 	module := NewAppModule(c, k)
 	want := GenesisState{
-		Params: domain.Params{Kp: 0.2, Ki: 0.03, AntiWindupLimit: 7, GasTarget: 15_000_000},
-		State:  domain.State{BaseFee: 25, Acc: 0.5},
+		Params: domain.Params{Kp: d("0.2"), Ki: d("0.03"), AntiWindupLimit: d("7"), GasTarget: d("15000000")},
+		State:  domain.State{BaseFee: d("25"), Acc: d("0.5")},
 	}
 
 	module.InitGenesis(ctx, c, mustMarshalGenesis(want))
@@ -52,7 +62,7 @@ func TestDefaultGenesisMatchesModuleContract(t *testing.T) {
 func TestValidateGenesisRejectsInvalidControllerConfiguration(t *testing.T) {
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	genesis := defaultGenesisState()
-	genesis.Params.GasTarget = 0
+	genesis.Params.GasTarget = d("0")
 
 	err := (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis))
 	require.ErrorContains(t, err, "gasTarget out of valid range")
@@ -61,8 +71,8 @@ func TestValidateGenesisRejectsInvalidControllerConfiguration(t *testing.T) {
 func TestValidateGenesisRejectsAccumulatorOutsideAntiWindupBounds(t *testing.T) {
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	genesis := defaultGenesisState()
-	genesis.Params.AntiWindupLimit = 2
-	genesis.State.Acc = 2.1
+	genesis.Params.AntiWindupLimit = d("2")
+	genesis.State.Acc = d("2.1")
 
 	err := (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis))
 	require.ErrorContains(t, err, "accumulator exceeds anti-windup limit")
@@ -86,8 +96,8 @@ func TestValidateGenesisRequiresEveryFeeMarketParameter(t *testing.T) {
 func TestValidateGenesisAcceptsExplicitZeroControllerParameters(t *testing.T) {
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	genesis := GenesisState{
-		Params: domain.Params{GasTarget: 10_000_000},
-		State:  domain.State{BaseFee: 10},
+		Params: domain.Params{GasTarget: d("10000000")},
+		State:  domain.State{BaseFee: d("10")},
 	}
 
 	require.NoError(t, (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis)))
@@ -109,7 +119,7 @@ func TestValidateGenesisAcceptsExplicitZeroAccumulator(t *testing.T) {
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	genesis := GenesisState{
 		Params: domain.DefaultParams(),
-		State:  domain.State{BaseFee: 10, Acc: 0},
+		State:  domain.State{BaseFee: d("10"), Acc: d("0")},
 	}
 
 	require.NoError(t, (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis)))
@@ -163,7 +173,7 @@ func TestInitGenesisRejectsUnknownFieldsWithoutOverwritingStoredState(t *testing
 			k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
 			module := NewAppModule(c, k)
 			storedParams := domain.DefaultParams()
-			storedState := domain.State{BaseFee: 12, Acc: 0.5}
+			storedState := domain.State{BaseFee: d("12"), Acc: d("0.5")}
 			require.NoError(t, k.SetParams(ctx, storedParams))
 			require.NoError(t, k.SetState(ctx, storedState))
 
@@ -187,8 +197,8 @@ func TestInitGenesisValidatesAllControllerDataBeforeWriting(t *testing.T) {
 	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
 	module := NewAppModule(c, k)
 	genesis := defaultGenesisState()
-	genesis.Params.Kp = 0.5
-	genesis.State.BaseFee = 0
+	genesis.Params.Kp = d("0.5")
+	genesis.State.BaseFee = d("0")
 
 	require.Panics(t, func() { module.InitGenesis(ctx, c, mustMarshalGenesis(genesis)) })
 	params, err := k.GetParams(ctx)
@@ -204,7 +214,7 @@ func TestKeeperRejectsInvalidControllerData(t *testing.T) {
 	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
 
 	params := domain.DefaultParams()
-	params.GasTarget = 0
+	params.GasTarget = d("0")
 	require.ErrorContains(t, k.SetParams(ctx, params), "validate fee market parameters")
 	require.ErrorContains(t, k.SetState(ctx, domain.State{}), "validate fee market state")
 }
@@ -216,7 +226,7 @@ func TestKeeperRejectsInvalidStoredControllerData(t *testing.T) {
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
 	params := domain.DefaultParams()
-	params.GasTarget = 0
+	params.GasTarget = d("0")
 	require.NoError(t, k.Params.Set(ctx, params))
 	require.NoError(t, k.State.Set(ctx, domain.State{}))
 
@@ -233,9 +243,9 @@ func TestKeeperRejectsStoredAccumulatorOutsideAntiWindupBounds(t *testing.T) {
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
 	params := domain.DefaultParams()
-	params.AntiWindupLimit = 2
+	params.AntiWindupLimit = d("2")
 	require.NoError(t, k.Params.Set(ctx, params))
-	require.NoError(t, k.State.Set(ctx, domain.State{BaseFee: 10, Acc: 2.1}))
+	require.NoError(t, k.State.Set(ctx, domain.State{BaseFee: d("10"), Acc: d("2.1")}))
 
 	_, err := k.GetState(ctx)
 	require.ErrorContains(t, err, "accumulator exceeds anti-windup limit")
@@ -261,15 +271,15 @@ func TestEndBlockRegulatesAgainstFinalizedBlockGas(t *testing.T) {
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
 	params := domain.DefaultParams()
-	params.GasTarget = 10_000_000
-	initial := domain.State{BaseFee: 10}
+	params.GasTarget = d("10000000")
+	initial := domain.State{BaseFee: d("10")}
 	require.NoError(t, k.SetParams(ctx, params))
 	require.NoError(t, k.SetState(ctx, initial))
 
 	require.NoError(t, k.EndBlock(ctx))
 	got, err := k.GetState(ctx)
 	require.NoError(t, err)
-	want, err := domain.Next(initial, 20_000_000, params)
+	want, err := domain.Next(initial, sdkmath.LegacyNewDec(20_000_000), params)
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/log/v2"
+	sdkmath "cosmossdk.io/math"
 	"github.com/CH4rnel/ChaosChain/pkg/feemarket"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -118,9 +119,9 @@ func TestModuleManagerOrderExecution(t *testing.T) {
 func TestModuleManagerEndBlockPersistsFeeMarketTransition(t *testing.T) {
 	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
 	ctx := app.BaseApp.NewNextBlockContext(cmtproto.Header{Height: 1}).WithBlockGasUsed(20_000_000)
-	initial := feemarket.State{BaseFee: 10}
+	initial := feemarket.State{BaseFee: sdkmath.LegacyNewDec(10), Acc: sdkmath.LegacyZeroDec()}
 	params := feemarket.DefaultParams()
-	want, err := feemarket.Next(initial, float64(ctx.BlockGasUsed()), params)
+	want, err := feemarket.Next(initial, sdkmath.LegacyNewDecFromInt(sdkmath.NewIntFromUint64(ctx.BlockGasUsed())), params)
 	require.NoError(t, err)
 
 	_, err = app.ModuleManager.EndBlock(ctx)

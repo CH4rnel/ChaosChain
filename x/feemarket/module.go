@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
+	sdkmath "cosmossdk.io/math"
 	domain "github.com/CH4rnel/ChaosChain/pkg/feemarket"
 	"github.com/CH4rnel/ChaosChain/x/feemarket/keeper"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -38,8 +39,29 @@ type GenesisState struct {
 func defaultGenesisState() GenesisState {
 	return GenesisState{
 		Params: domain.DefaultParams(),
-		State:  domain.State{BaseFee: 10},
+		State:  domain.State{BaseFee: sdkmath.LegacyNewDec(10), Acc: sdkmath.LegacyZeroDec()},
 	}
+}
+
+type genesisDecimal struct {
+	value sdkmath.LegacyDec
+}
+
+func (d *genesisDecimal) UnmarshalJSON(bz []byte) error {
+	var text string
+	if len(bz) > 0 && bz[0] == '"' {
+		if err := json.Unmarshal(bz, &text); err != nil {
+			return err
+		}
+	} else {
+		text = string(bz)
+	}
+	value, err := sdkmath.LegacyNewDecFromStr(text)
+	if err != nil {
+		return err
+	}
+	d.value = value
+	return nil
 }
 
 func mustMarshalGenesis(genesis GenesisState) json.RawMessage {
@@ -74,14 +96,14 @@ func rejectUnknownGenesisFields(bz json.RawMessage, objectName, scope string, al
 func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	var payload struct {
 		Params *struct {
-			Kp              *float64 `json:"kp"`
-			Ki              *float64 `json:"ki"`
-			AntiWindupLimit *float64 `json:"anti_windup_limit"`
-			GasTarget       *float64 `json:"gas_target"`
+			Kp              *genesisDecimal `json:"kp"`
+			Ki              *genesisDecimal `json:"ki"`
+			AntiWindupLimit *genesisDecimal `json:"anti_windup_limit"`
+			GasTarget       *genesisDecimal `json:"gas_target"`
 		} `json:"params"`
 		State *struct {
-			BaseFee *float64 `json:"base_fee"`
-			Acc     *float64 `json:"acc"`
+			BaseFee *genesisDecimal `json:"base_fee"`
+			Acc     *genesisDecimal `json:"acc"`
 		} `json:"state"`
 	}
 	if err := json.Unmarshal(bz, &payload); err != nil {
@@ -120,12 +142,12 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	}
 	genesis := GenesisState{
 		Params: domain.Params{
-			Kp:              *params.Kp,
-			Ki:              *params.Ki,
-			AntiWindupLimit: *params.AntiWindupLimit,
-			GasTarget:       *params.GasTarget,
+			Kp:              params.Kp.value,
+			Ki:              params.Ki.value,
+			AntiWindupLimit: params.AntiWindupLimit.value,
+			GasTarget:       params.GasTarget.value,
 		},
-		State: domain.State{BaseFee: *payload.State.BaseFee, Acc: *payload.State.Acc},
+		State: domain.State{BaseFee: payload.State.BaseFee.value, Acc: payload.State.Acc.value},
 	}
 	if err := domain.ValidateParams(genesis.Params); err != nil {
 		return GenesisState{}, fmt.Errorf("validate fee market genesis parameters: %w", err)

@@ -8,6 +8,7 @@ import (
 
 	"cosmossdk.io/collections"
 	storetypes "cosmossdk.io/core/store"
+	sdkmath "cosmossdk.io/math"
 	"github.com/CH4rnel/ChaosChain/pkg/feemarket"
 	"github.com/cosmos/cosmos-sdk/codec"
 )
@@ -89,7 +90,7 @@ func (k Keeper) GetState(ctx context.Context) (feemarket.State, error) {
 	if err != nil {
 
 		if errors.Is(err, collections.ErrNotFound) {
-			state := feemarket.State{BaseFee: 10.0, Acc: 0.0}
+			state := feemarket.State{BaseFee: sdkmath.LegacyNewDec(10), Acc: sdkmath.LegacyZeroDec()}
 			params, err := k.GetParams(ctx)
 			if err != nil {
 				return feemarket.State{}, fmt.Errorf("load fee market parameters for default state validation: %w", err)
