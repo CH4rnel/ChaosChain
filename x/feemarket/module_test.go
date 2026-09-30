@@ -35,6 +35,20 @@ func TestGenesisRoundTrip(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
+func TestDefaultGenesisMatchesModuleContract(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	module := AppModule{}
+	genesis := module.DefaultGenesis(c)
+
+	require.Equal(t, ModuleName, module.Name())
+	require.Equal(t, uint64(1), module.ConsensusVersion())
+	require.NoError(t, module.ValidateGenesis(c, nil, genesis))
+
+	var got GenesisState
+	require.NoError(t, json.Unmarshal(genesis, &got))
+	require.Equal(t, defaultGenesisState(), got)
+}
+
 func TestValidateGenesisRejectsInvalidControllerConfiguration(t *testing.T) {
 	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 	genesis := defaultGenesisState()
