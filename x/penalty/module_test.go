@@ -41,6 +41,24 @@ func TestValidateGenesisRejectsInvalidPenaltyConfiguration(t *testing.T) {
 	require.ErrorContains(t, err, "kappa must be in the range")
 }
 
+func TestInitGenesisRejectsInvalidParamsWithoutOverwritingStoredState(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	module := NewAppModule(c, k)
+	storedParams := domain.DefaultParams()
+	genesis := defaultGenesisState()
+	genesis.Params.BaseSlash = -0.01
+	require.NoError(t, k.SetParams(ctx, storedParams))
+
+	require.Panics(t, func() { module.InitGenesis(ctx, c, mustMarshalGenesis(genesis)) })
+	gotParams, err := k.GetParams(ctx)
+	require.NoError(t, err)
+	require.Equal(t, storedParams, gotParams)
+}
+
 func TestKeeperRejectsInvalidPenaltyConfiguration(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
