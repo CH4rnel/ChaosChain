@@ -152,3 +152,50 @@ func TestEndBlockPersistsTransitionUsingFinalizedBlockGas(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
+
+func TestEndBlockRejectsInvalidInputsWithoutChangingStoredState(t *testing.T) {
+	tests := []struct {
+		name          string
+		gasUsed       uint64
+		params        feemarket.Params
+		state         feemarket.State
+		expectedError string
+	}{
+		{
+			name:          "invalid persisted parameters",
+			params:        feemarket.Params{GasTarget: 0},
+			state:         feemarket.State{BaseFee: 10},
+			expectedError: "validate stored fee market parameters",
+		},
+		{
+			name:          "invalid persisted state",
+			params:        feemarket.DefaultParams(),
+			state:         feemarket.State{},
+			expectedError: "validate stored fee market state",
+		},
+		{
+			name:          "gas above consensus limit",
+			gasUsed:       uint64(feemarket.MaxGasUsed) + 1,
+			params:        feemarket.DefaultParams(),
+			state:         feemarket.State{BaseFee: 10},
+			expectedError: "gasUsed out of valid range",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, k := newTestKeeper(t)
+			ctx = ctx.WithBlockGasUsed(tt.gasUsed)
+			require.NoError(t, k.Params.Set(ctx, tt.params))
+			require.NoError(t, k.State.Set(ctx, tt.state))
+
+			require.ErrorContains(t, k.EndBlock(ctx), tt.expectedError)
+			gotParams, err := k.Params.Get(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tt.params, gotParams)
+			gotState, err := k.State.Get(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tt.state, gotState)
+		})
+	}
+}
