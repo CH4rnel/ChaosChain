@@ -97,6 +97,25 @@ func TestInitGenesisRejectsInvalidParamsWithoutOverwritingStoredState(t *testing
 	require.Equal(t, storedParams, gotParams)
 }
 
+func TestInitGenesisRejectsIncompleteParamsWithoutOverwritingStoredState(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	module := NewAppModule(c, k)
+	storedParams := domain.DefaultParams()
+	require.NoError(t, k.SetParams(ctx, storedParams))
+
+	require.Panics(t, func() {
+		module.InitGenesis(ctx, c, json.RawMessage(`{"params":{"base_slash":0.05}}`))
+	})
+
+	gotParams, err := k.GetParams(ctx)
+	require.NoError(t, err)
+	require.Equal(t, storedParams, gotParams)
+}
+
 func TestKeeperRejectsInvalidPenaltyConfiguration(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
