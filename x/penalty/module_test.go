@@ -49,6 +49,23 @@ func TestValidateGenesisRequiresExplicitParameters(t *testing.T) {
 	}
 }
 
+func TestInitGenesisAcceptsExplicitZeroParameters(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	module := NewAppModule(c, k)
+	want := GenesisState{Params: domain.Params{}}
+	genesis := mustMarshalGenesis(want)
+
+	require.NoError(t, module.ValidateGenesis(c, nil, genesis))
+	module.InitGenesis(ctx, c, genesis)
+	got, err := k.GetParams(ctx)
+	require.NoError(t, err)
+	require.Equal(t, want.Params, got)
+}
+
 func TestInitGenesisRejectsInvalidParamsWithoutOverwritingStoredState(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
