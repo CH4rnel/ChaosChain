@@ -58,7 +58,10 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 			AntiWindupLimit *float64 `json:"anti_windup_limit"`
 			GasTarget       *float64 `json:"gas_target"`
 		} `json:"params"`
-		State domain.State `json:"state"`
+		State *struct {
+			BaseFee *float64 `json:"base_fee"`
+			Acc     *float64 `json:"acc"`
+		} `json:"state"`
 	}
 	if err := json.Unmarshal(bz, &payload); err != nil {
 		return GenesisState{}, fmt.Errorf("decode fee market genesis: %w", err)
@@ -79,6 +82,15 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	if params.GasTarget == nil {
 		return GenesisState{}, fmt.Errorf("missing fee market genesis parameter: gas_target")
 	}
+	if payload.State == nil {
+		return GenesisState{}, fmt.Errorf("missing fee market genesis state")
+	}
+	if payload.State.BaseFee == nil {
+		return GenesisState{}, fmt.Errorf("missing fee market genesis state field: base_fee")
+	}
+	if payload.State.Acc == nil {
+		return GenesisState{}, fmt.Errorf("missing fee market genesis state field: acc")
+	}
 	genesis := GenesisState{
 		Params: domain.Params{
 			Kp:              *params.Kp,
@@ -86,7 +98,7 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 			AntiWindupLimit: *params.AntiWindupLimit,
 			GasTarget:       *params.GasTarget,
 		},
-		State: payload.State,
+		State: domain.State{BaseFee: *payload.State.BaseFee, Acc: *payload.State.Acc},
 	}
 	if err := domain.ValidateParams(genesis.Params); err != nil {
 		return GenesisState{}, fmt.Errorf("validate fee market genesis parameters: %w", err)
