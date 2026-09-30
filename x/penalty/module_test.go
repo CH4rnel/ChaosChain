@@ -41,6 +41,14 @@ func TestValidateGenesisRejectsInvalidPenaltyConfiguration(t *testing.T) {
 	require.ErrorContains(t, err, "kappa must be in the range")
 }
 
+func TestValidateGenesisRequiresExplicitParameters(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	for _, bz := range [][]byte{[]byte(`{}`), []byte(`{"params":null}`)} {
+		err := (AppModule{}).ValidateGenesis(c, nil, bz)
+		require.ErrorContains(t, err, "missing penalty genesis params")
+	}
+}
+
 func TestInitGenesisRejectsInvalidParamsWithoutOverwritingStoredState(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
