@@ -70,6 +70,14 @@ func TestValidateGenesisRejectsUnknownPenaltyParameter(t *testing.T) {
 	require.ErrorContains(t, err, "unknown penalty genesis parameter: kappa_misspelled")
 }
 
+func TestValidateGenesisRejectsUnknownTopLevelField(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	genesis := json.RawMessage(`{"params":{"base_slash":0.01,"kappa":2},"paramz":{"base_slash":0.5}}`)
+
+	err := (AppModule{}).ValidateGenesis(c, nil, genesis)
+	require.ErrorContains(t, err, "unknown penalty genesis field: paramz")
+}
+
 func TestInitGenesisAcceptsExplicitZeroParameters(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
