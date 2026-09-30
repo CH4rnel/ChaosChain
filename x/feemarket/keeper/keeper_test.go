@@ -116,3 +116,19 @@ func TestSetStateRejectsInvalidStateWithoutPersistingIt(t *testing.T) {
 	_, err := k.State.Get(ctx)
 	require.ErrorIs(t, err, collections.ErrNotFound)
 }
+
+func TestEndBlockPersistsTransitionUsingFinalizedBlockGas(t *testing.T) {
+	ctx, k := newTestKeeper(t)
+	ctx = ctx.WithBlockGasUsed(20_000_000)
+	params := feemarket.DefaultParams()
+	initial := feemarket.State{BaseFee: 10, Acc: 0}
+	require.NoError(t, k.SetParams(ctx, params))
+	require.NoError(t, k.SetState(ctx, initial))
+	want, err := feemarket.Next(initial, float64(ctx.BlockGasUsed()), params)
+	require.NoError(t, err)
+
+	require.NoError(t, k.EndBlock(ctx))
+	got, err := k.GetState(ctx)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+}
