@@ -62,6 +62,14 @@ func TestValidateGenesisRequiresEveryPenaltyParameter(t *testing.T) {
 	}
 }
 
+func TestValidateGenesisRejectsUnknownPenaltyParameter(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	genesis := json.RawMessage(`{"params":{"base_slash":0.01,"kappa":2,"kappa_misspelled":3}}`)
+
+	err := (AppModule{}).ValidateGenesis(c, nil, genesis)
+	require.ErrorContains(t, err, "unknown penalty genesis parameter: kappa_misspelled")
+}
+
 func TestInitGenesisAcceptsExplicitZeroParameters(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
