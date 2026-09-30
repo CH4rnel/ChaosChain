@@ -93,6 +93,18 @@ func TestValidateGenesisAcceptsExplicitZeroControllerParameters(t *testing.T) {
 	require.NoError(t, (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis)))
 }
 
+func TestValidateGenesisRequiresEveryFeeMarketStateField(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	for _, state := range []string{
+		`{"base_fee":10}`,
+		`{"base_fee":10,"acc":null}`,
+	} {
+		genesis := json.RawMessage(`{"params":{"kp":0.1,"ki":0.01,"anti_windup_limit":10,"gas_target":10000000},"state":` + state + `}`)
+		err := (AppModule{}).ValidateGenesis(c, nil, genesis)
+		require.ErrorContains(t, err, "missing fee market genesis state field: acc")
+	}
+}
+
 func TestInitGenesisValidatesAllControllerDataBeforeWriting(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
