@@ -52,6 +52,15 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	if err := json.Unmarshal(bz, &payload); err != nil {
 		return GenesisState{}, fmt.Errorf("decode penalty genesis: %w", err)
 	}
+	var rootFields map[string]json.RawMessage
+	if err := json.Unmarshal(bz, &rootFields); err != nil {
+		return GenesisState{}, fmt.Errorf("decode penalty genesis: %w", err)
+	}
+	for name := range rootFields {
+		if name != "params" {
+			return GenesisState{}, fmt.Errorf("unknown penalty genesis field: %s", name)
+		}
+	}
 	if len(payload.Params) == 0 {
 		return GenesisState{}, fmt.Errorf("missing penalty genesis params")
 	}
