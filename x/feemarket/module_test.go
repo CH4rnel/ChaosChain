@@ -115,6 +115,31 @@ func TestValidateGenesisAcceptsExplicitZeroAccumulator(t *testing.T) {
 	require.NoError(t, (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis)))
 }
 
+func TestValidateGenesisRejectsUnknownParameterAndStateFields(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	for _, testCase := range []struct {
+		name string
+		json string
+		want string
+	}{
+		{
+			name: "parameter",
+			json: `{"params":{"kp":0.1,"ki":0.01,"anti_windup_limit":10,"gas_target":10000000,"kp_typo":0.2},"state":{"base_fee":10,"acc":0}}`,
+			want: "unknown fee market genesis parameter: kp_typo",
+		},
+		{
+			name: "state",
+			json: `{"params":{"kp":0.1,"ki":0.01,"anti_windup_limit":10,"gas_target":10000000},"state":{"base_fee":10,"acc":0,"basefee":11}}`,
+			want: "unknown fee market genesis state field: basefee",
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := (AppModule{}).ValidateGenesis(c, nil, json.RawMessage(testCase.json))
+			require.ErrorContains(t, err, testCase.want)
+		})
+	}
+}
+
 func TestInitGenesisValidatesAllControllerDataBeforeWriting(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
