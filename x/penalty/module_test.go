@@ -49,6 +49,19 @@ func TestValidateGenesisRequiresExplicitParameters(t *testing.T) {
 	}
 }
 
+func TestValidateGenesisRequiresEveryPenaltyParameter(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	for _, params := range []string{
+		`{"base_slash":0.01}`,
+		`{"kappa":2}`,
+		`{"base_slash":0.01,"kappa":null}`,
+	} {
+		genesis := json.RawMessage(`{"params":` + params + `}`)
+		err := (AppModule{}).ValidateGenesis(c, nil, genesis)
+		require.ErrorContains(t, err, "missing penalty genesis parameter")
+	}
+}
+
 func TestInitGenesisAcceptsExplicitZeroParameters(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
