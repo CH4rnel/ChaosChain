@@ -67,9 +67,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Run Govulncheck
-        # continue-on-error: true - monitors transitive CVEs in quic-go/libp2p 
-        # pulled by Cosmos SDK without blocking the CI pipeline.
-        continue-on-error: true
         run: make vuln
 
   sbom:
