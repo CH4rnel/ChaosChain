@@ -105,6 +105,16 @@ func TestValidateGenesisRequiresEveryFeeMarketStateField(t *testing.T) {
 	}
 }
 
+func TestValidateGenesisAcceptsExplicitZeroAccumulator(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	genesis := GenesisState{
+		Params: domain.DefaultParams(),
+		State:  domain.State{BaseFee: 10, Acc: 0},
+	}
+
+	require.NoError(t, (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis)))
+}
+
 func TestInitGenesisValidatesAllControllerDataBeforeWriting(t *testing.T) {
 	key := storetypes.NewKVStoreKey(ModuleName)
 	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_feemarket"))
