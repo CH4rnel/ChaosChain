@@ -45,6 +45,23 @@ func mustMarshalGenesis(genesis GenesisState) json.RawMessage {
 	return bz
 }
 
+func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
+	var payload struct {
+		Params *domain.Params `json:"params"`
+	}
+	if err := json.Unmarshal(bz, &payload); err != nil {
+		return GenesisState{}, fmt.Errorf("decode penalty genesis: %w", err)
+	}
+	if payload.Params == nil {
+		return GenesisState{}, fmt.Errorf("missing penalty genesis params")
+	}
+	genesis := GenesisState{Params: *payload.Params}
+	if err := domain.ValidateParams(genesis.Params); err != nil {
+		return GenesisState{}, fmt.Errorf("validate penalty genesis: %w", err)
+	}
+	return genesis, nil
+}
+
 func (AppModule) Name() string        { return ModuleName }
 func (AppModule) IsOnePerModuleType() {}
 func (AppModule) IsAppModule()        {}
@@ -54,14 +71,8 @@ func (AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 }
 
 func (AppModule) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncodingConfig, bz json.RawMessage) error {
-	var genesis GenesisState
-	if err := json.Unmarshal(bz, &genesis); err != nil {
-		return fmt.Errorf("decode penalty genesis: %w", err)
-	}
-	if err := domain.ValidateParams(genesis.Params); err != nil {
-		return fmt.Errorf("validate penalty genesis: %w", err)
-	}
-	return nil
+	_, err := decodeAndValidateGenesis(bz)
+	return err
 }
 
 func (AppModule) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino)                           {}
@@ -78,9 +89,9 @@ func (m AppModule) RegisterInvariants(sdk.InvariantRegistry) {}
 func (m AppModule) RegisterServices(cfg module.Configurator) {}
 
 func (m AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) {
-	var genesis GenesisState
-	if err := json.Unmarshal(data, &genesis); err != nil {
-		panic(fmt.Errorf("decode penalty genesis: %w", err))
+	genesis, err := decodeAndValidateGenesis(data)
+	if err != nil {
+		panic(err)
 	}
 	if err := m.keeper.SetParams(ctx, genesis.Params); err != nil {
 		panic(fmt.Errorf("initialize penalty parameters: %w", err))
