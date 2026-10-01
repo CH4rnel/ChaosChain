@@ -11,6 +11,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
+	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	"github.com/stretchr/testify/require"
 )
@@ -56,16 +57,26 @@ func TestGenesisIncludesValidatorRewardDistribution(t *testing.T) {
 	require.Contains(t, app.DefaultGenesis(), "mint")
 	require.Contains(t, app.DefaultGenesis(), "gov")
 	require.Contains(t, app.DefaultGenesis(), "upgrade")
+	require.Contains(t, app.DefaultGenesis(), "consensus")
 	require.Contains(t, app.ModuleManager.Modules, "distribution")
 	require.Contains(t, app.ModuleManager.Modules, "mint")
 	require.Contains(t, app.ModuleManager.Modules, "gov")
 	require.Contains(t, app.ModuleManager.Modules, "upgrade")
+	require.Contains(t, app.ModuleManager.Modules, "consensus")
 }
 
 func TestDefaultGenesisPassesModuleValidation(t *testing.T) {
 	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
 
 	require.NoError(t, ModuleBasics().ValidateGenesis(app.AppCodec(), app.TxConfig(), app.DefaultGenesis()))
+}
+
+func TestLegacyGenTxJSONFieldDecodesForGenesisInit(t *testing.T) {
+	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
+	var genesisState genutiltypes.GenesisState
+
+	require.NoError(t, app.AppCodec().UnmarshalJSON([]byte(`{"gen_txs":[{}]}`), &genesisState))
+	require.Len(t, genesisState.GenTxs, 1)
 }
 
 func TestMintGenesisParamsAndBeginBlockOrder(t *testing.T) {
@@ -150,6 +161,7 @@ func TestRootCmdIncludesValidatorBootstrapCommands(t *testing.T) {
 		{"genesis", "gentx"},
 		{"genesis", "collect-gentxs"},
 		{"start"},
+		{"start-native"},
 		{"status"},
 		{"tx", "bank", "send"},
 		{"tx", "staking", "delegate"},

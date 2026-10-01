@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -36,6 +37,7 @@ import (
 	bankcli "github.com/cosmos/cosmos-sdk/x/bank/client/cli"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	consensusmodule "github.com/cosmos/cosmos-sdk/x/consensus"
 	distributionmodule "github.com/cosmos/cosmos-sdk/x/distribution"
 	distributioncli "github.com/cosmos/cosmos-sdk/x/distribution/client/cli"
 	genutilmodule "github.com/cosmos/cosmos-sdk/x/genutil"
@@ -59,6 +61,7 @@ import (
 	penaltykeeper "github.com/CH4rnel/ChaosChain/x/penalty/keeper"
 
 	_ "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
+	_ "cosmossdk.io/api/cosmos/consensus/module/v1"
 	_ "cosmossdk.io/api/cosmos/distribution/module/v1"
 	_ "cosmossdk.io/api/cosmos/genutil/module/v1"
 	_ "cosmossdk.io/api/cosmos/gov/module/v1"
@@ -67,6 +70,7 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/auth"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	_ "github.com/cosmos/cosmos-sdk/x/bank"
+	_ "github.com/cosmos/cosmos-sdk/x/consensus"
 	_ "github.com/cosmos/cosmos-sdk/x/distribution"
 	_ "github.com/cosmos/cosmos-sdk/x/genutil"
 	_ "github.com/cosmos/cosmos-sdk/x/gov"
@@ -175,8 +179,8 @@ func NewChaosChainApp(
 	}
 
 	runtimeApp.ModuleManager.SetOrderBeginBlockers("mint", "distribution", "slashing", "staking", "bank")
-	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "mint", "distribution", "slashing", "gov", "upgrade", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "mint", "distribution", "slashing", "gov", "upgrade", "genutil", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "mint", "distribution", "slashing", "gov", "upgrade", "genutil", "consensus", feemarketmodule.ModuleName, penaltymodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "mint", "distribution", "slashing", "gov", "upgrade", "genutil", "consensus", feemarketmodule.ModuleName, penaltymodule.ModuleName)
 	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", "gov", feemarketmodule.ModuleName)
 
 	if err := runtimeApp.Load(loadLatest); err != nil {
@@ -262,18 +266,35 @@ func NewRootCmd() *cobra.Command {
 		WithTxConfig(txConfig).
 		WithHomeDir(DefaultNodeHome)
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		if cmd.Context().Value(server.ServerContextKey) == nil {
+			cmd.SetContext(context.WithValue(cmd.Context(), server.ServerContextKey, server.NewDefaultContext()))
+		}
 		if err := client.SetCmdClientContextHandler(clientCtx, cmd); err != nil {
 			return err
 		}
-		return server.InterceptConfigsPreRunHandler(cmd, "", nil, cmtcfg.DefaultConfig())
+		if err := server.InterceptConfigsPreRunHandler(cmd, config.DefaultConfigTemplate, config.DefaultConfig(), cmtcfg.DefaultConfig()); err != nil {
+			return err
+		}
+		serverCtx := server.GetServerContextFromCmd(cmd)
+		if !serverCtx.Viper.IsSet(server.FlagPruning) {
+			serverCtx.Viper.Set(server.FlagPruning, config.DefaultConfig().Pruning)
+		}
+		return nil
 	}
 	rootCmd.AddCommand(clientkeys.Commands())
 	rootCmd.AddCommand(genutilcli.InitCmd(basics, DefaultNodeHome))
 	rootCmd.AddCommand(genutilcli.Commands(txConfig, basics, DefaultNodeHome))
-	rootCmd.AddCommand(server.StartCmd(
-		newServerApp,
-		DefaultNodeHome,
-	))
+	rootCmd.AddCommand(server.StartCmd(newServerApp, DefaultNodeHome))
+	nativeStartCmd := server.StartCmdWithOptions(newServerApp, DefaultNodeHome, server.StartCmdOptions{
+		StartCommandHandler: func(serverCtx *server.Context, _ client.Context, appCreator servertypes.AppCreator, withCometBFT bool, opts server.StartCmdOptions) error {
+			if !withCometBFT {
+				return fmt.Errorf("direct CometBFT startup requires in-process consensus")
+			}
+			return runNativeCometNode(serverCtx, appCreator, opts)
+		},
+	})
+	nativeStartCmd.Use = "start-native"
+	rootCmd.AddCommand(nativeStartCmd)
 	rootCmd.AddCommand(server.StatusCommand())
 	rootCmd.AddCommand(newTxCommand())
 	rootCmd.AddCommand(newQueryCommand())
@@ -358,6 +379,7 @@ func ModuleBasics() module.BasicManager {
 	return module.NewBasicManager(
 		authmodule.AppModuleBasic{},
 		bankmodule.AppModuleBasic{},
+		consensusmodule.AppModuleBasic{},
 		stakingmodule.AppModuleBasic{},
 		mintmodule.AppModuleBasic{},
 		distributionmodule.AppModuleBasic{},
