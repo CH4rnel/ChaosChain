@@ -6,6 +6,7 @@ import (
 	"cosmossdk.io/log/v2"
 	sdkmath "cosmossdk.io/math"
 	"github.com/CH4rnel/ChaosChain/pkg/feemarket"
+	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
@@ -37,6 +38,15 @@ func TestChaosChainAppInitialization(t *testing.T) {
 	require.NotNil(t, app.BankKeeper, "BankKeeper must be injected")
 	require.NotNil(t, app.StakingKeeper, "StakingKeeper must be injected")
 	require.NotNil(t, app.SlashingKeeper, "SlashingKeeper must be injected")
+}
+
+func TestCometABCIAdapterForwardsRequests(t *testing.T) {
+	application := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
+	adapter := newCometABCIAdapter(application)
+
+	response, err := adapter.Info(t.Context(), &abci.RequestInfo{})
+	require.NoError(t, err)
+	require.Equal(t, application.Name(), response.Data)
 }
 
 func TestGenesisIncludesValidatorRewardDistribution(t *testing.T) {
