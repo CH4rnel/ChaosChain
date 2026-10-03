@@ -39,7 +39,7 @@ sast:
 	$(GOCMD) run github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) ./...
 
 vuln:
-	$(GOCMD) run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	bash scripts/check-vuln.sh
 
 sbom:
 	$(GOCMD) run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest mod -json -output sbom.json
