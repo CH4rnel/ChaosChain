@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"testing"
 
 	"cosmossdk.io/log/v2"
@@ -167,12 +168,17 @@ func TestRootCmdIncludesValidatorBootstrapCommands(t *testing.T) {
 		{"tx", "staking", "delegate"},
 		{"tx", "gov"},
 		{"query", "bank", "balances"},
+		{"query", "auth", "account"},
+		{"query", "staking", "delegation"},
+		{"query", "distribution", "rewards"},
+		{"query", "gov", "proposals"},
 		{"query", "tx"},
 		{"query", "txs"},
 	} {
 		cmd, _, err := rootCmd.Find(path)
 		require.NoError(t, err)
 		require.NotNil(t, cmd, "command %v must be registered", path)
+		require.Equal(t, append([]string{"chaoschaind"}, path...), strings.Fields(cmd.CommandPath()), "command %v must resolve exactly", path)
 	}
 }
 

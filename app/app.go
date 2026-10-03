@@ -298,6 +298,9 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(server.StatusCommand())
 	rootCmd.AddCommand(newTxCommand())
 	rootCmd.AddCommand(newQueryCommand())
+	if err := addModuleCLICommands(rootCmd, clientCtx); err != nil {
+		panic(fmt.Errorf("register module CLI commands: %w", err))
+	}
 	return rootCmd
 }
 
