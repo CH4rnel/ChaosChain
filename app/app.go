@@ -259,12 +259,7 @@ func NewRootCmd() *cobra.Command {
 	); err != nil {
 		panic(fmt.Errorf("wire CLI encoding configuration: %w", err))
 	}
-	clientCtx := client.Context{}.
-		WithCodec(appCodec).
-		WithLegacyAmino(legacyAmino).
-		WithInterfaceRegistry(interfaceRegistry).
-		WithTxConfig(txConfig).
-		WithHomeDir(DefaultNodeHome)
+	clientCtx := newClientContext(appCodec, legacyAmino, interfaceRegistry, txConfig)
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
 		if cmd.Context().Value(server.ServerContextKey) == nil {
 			cmd.SetContext(context.WithValue(cmd.Context(), server.ServerContextKey, server.NewDefaultContext()))
@@ -302,6 +297,16 @@ func NewRootCmd() *cobra.Command {
 		panic(fmt.Errorf("register module CLI commands: %w", err))
 	}
 	return rootCmd
+}
+
+func newClientContext(appCodec codec.Codec, legacyAmino *codec.LegacyAmino, interfaceRegistry codectypes.InterfaceRegistry, txConfig client.TxConfig) client.Context {
+	return client.Context{}.
+		WithCodec(appCodec).
+		WithLegacyAmino(legacyAmino).
+		WithInterfaceRegistry(interfaceRegistry).
+		WithTxConfig(txConfig).
+		WithAccountRetriever(authtypes.AccountRetriever{}).
+		WithHomeDir(DefaultNodeHome)
 }
 
 func newTxCommand() *cobra.Command {

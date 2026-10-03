@@ -182,6 +182,12 @@ func TestRootCmdIncludesValidatorBootstrapCommands(t *testing.T) {
 	}
 }
 
+func TestRootCmdConfiguresAccountRetrieverForOnlineTransactions(t *testing.T) {
+	app := NewChaosChainApp(log.NewTestLogger(t), dbm.NewMemDB(), nil, true, mockAppOptions{})
+	clientCtx := newClientContext(app.AppCodec(), app.LegacyAmino(), app.InterfaceRegistry(), app.TxConfig())
+	require.NotNil(t, clientCtx.AccountRetriever)
+}
+
 func TestServerAppAppliesSDKBaseAppOptions(t *testing.T) {
 	chainID := "chaos-sdk-options-test"
 	appOptions := appOptions{
