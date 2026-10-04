@@ -30,5 +30,20 @@
     "fee": "5000",
     "transfer": "10000",
     "delegation": "1000"
+  },
+  "multinode": {
+    "validator_count": 4,
+    "validator_balance": "1000000000000",
+    "self_delegation": "100000000000",
+    "port_stride": 10,
+    "ports": {
+      "p2p": 27656,
+      "rpc": 27657,
+      "abci": 27658,
+      "grpc": 9190,
+      "grpc_web": 9191,
+      "api": 1417,
+      "pprof": 6160
+    }
   }
 }
