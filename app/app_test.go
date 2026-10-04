@@ -131,6 +131,7 @@ func TestModuleManagerOrderExecution(t *testing.T) {
 
 	app := NewChaosChainApp(logger, db, nil, true, mockAppOptions{})
 	ctx := app.BaseApp.NewNextBlockContext(cmtproto.Header{Height: 1})
+	require.Equal(t, "penalty", app.ModuleManager.OrderEndBlockers[len(app.ModuleManager.OrderEndBlockers)-1])
 
 	require.NotPanics(t, func() {
 		app.ModuleManager.BeginBlock(ctx)

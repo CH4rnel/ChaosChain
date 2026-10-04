@@ -136,7 +136,7 @@ func (k Keeper) Slash(ctx context.Context, faultyShare float64) (float64, error)
 	return penalty.CalculateSlashFraction(faultyShare, params)
 }
 
-func validateFault(fault CorrelatedFault) error {
+func ValidateCorrelatedFault(fault CorrelatedFault) error {
 	if err := sdk.VerifyAddressFormat(fault.ConsensusAddress); err != nil {
 		return fmt.Errorf("invalid consensus address: %w", err)
 	}
@@ -153,7 +153,7 @@ func validateFault(fault CorrelatedFault) error {
 }
 
 func (k Keeper) QueueCorrelatedFault(ctx context.Context, fault CorrelatedFault) error {
-	if err := validateFault(fault); err != nil {
+	if err := ValidateCorrelatedFault(fault); err != nil {
 		return err
 	}
 	faults, err := k.PendingFaults.Get(ctx)
@@ -161,6 +161,15 @@ func (k Keeper) QueueCorrelatedFault(ctx context.Context, fault CorrelatedFault)
 		return fmt.Errorf("load pending faults: %w", err)
 	}
 	faults = append(faults, fault)
+	return k.PendingFaults.Set(ctx, faults)
+}
+
+func (k Keeper) SetPendingFaults(ctx context.Context, faults []CorrelatedFault) error {
+	for _, fault := range faults {
+		if err := ValidateCorrelatedFault(fault); err != nil {
+			return fmt.Errorf("validate pending fault: %w", err)
+		}
+	}
 	return k.PendingFaults.Set(ctx, faults)
 }
 
@@ -173,7 +182,7 @@ func (k Keeper) GetPendingFaults(ctx context.Context) ([]CorrelatedFault, error)
 		return nil, err
 	}
 	for _, fault := range faults {
-		if err := validateFault(fault); err != nil {
+		if err := ValidateCorrelatedFault(fault); err != nil {
 			return nil, fmt.Errorf("validate pending fault: %w", err)
 		}
 	}

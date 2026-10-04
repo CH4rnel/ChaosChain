@@ -5,7 +5,7 @@ modules:
       app_name: ChaosChain
       pre_blockers: [upgrade, consensus, auth, bank, staking, distribution, slashing, gov, genutil, feemarket, penalty]
       begin_blockers: [mint, distribution, slashing, staking, bank]
-      end_blockers: [staking, bank, gov, feemarket]
+      end_blockers: [staking, bank, gov, feemarket, penalty]
       init_genesis: [auth, bank, staking, mint, distribution, slashing, gov, upgrade, genutil, consensus, feemarket, penalty]
       export_genesis: [auth, bank, staking, mint, distribution, slashing, gov, upgrade, genutil, consensus, feemarket, penalty]
   - name: auth

@@ -1,6 +1,7 @@
 package penalty
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -19,9 +20,10 @@ import (
 const ModuleName = "penalty"
 
 var (
-	_ module.AppModuleBasic = AppModule{}
-	_ module.AppModule      = AppModule{}
-	_ appmodule.AppModule   = AppModule{}
+	_ module.AppModuleBasic   = AppModule{}
+	_ module.AppModule        = AppModule{}
+	_ appmodule.AppModule     = AppModule{}
+	_ appmodule.HasEndBlocker = AppModule{}
 )
 
 type AppModule struct {
@@ -30,7 +32,8 @@ type AppModule struct {
 }
 
 type GenesisState struct {
-	Params domain.Params `json:"params"`
+	Params        domain.Params            `json:"params"`
+	PendingFaults []keeper.CorrelatedFault `json:"pending_faults,omitempty"`
 }
 
 func defaultGenesisState() GenesisState {
@@ -47,7 +50,8 @@ func mustMarshalGenesis(genesis GenesisState) json.RawMessage {
 
 func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	var payload struct {
-		Params json.RawMessage `json:"params"`
+		Params        json.RawMessage `json:"params"`
+		PendingFaults json.RawMessage `json:"pending_faults"`
 	}
 	if err := json.Unmarshal(bz, &payload); err != nil {
 		return GenesisState{}, fmt.Errorf("decode penalty genesis: %w", err)
@@ -57,7 +61,7 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 		return GenesisState{}, fmt.Errorf("decode penalty genesis: %w", err)
 	}
 	for name := range rootFields {
-		if name != "params" {
+		if name != "params" && name != "pending_faults" {
 			return GenesisState{}, fmt.Errorf("unknown penalty genesis field: %s", name)
 		}
 	}
@@ -92,6 +96,16 @@ func decodeAndValidateGenesis(bz json.RawMessage) (GenesisState, error) {
 	genesis := GenesisState{Params: domain.Params{BaseSlash: *params.BaseSlash, Kappa: *params.Kappa}}
 	if err := domain.ValidateParams(genesis.Params); err != nil {
 		return GenesisState{}, fmt.Errorf("validate penalty genesis: %w", err)
+	}
+	if len(payload.PendingFaults) > 0 {
+		if err := json.Unmarshal(payload.PendingFaults, &genesis.PendingFaults); err != nil {
+			return GenesisState{}, fmt.Errorf("decode pending penalty faults: %w", err)
+		}
+		for _, fault := range genesis.PendingFaults {
+			if err := keeper.ValidateCorrelatedFault(fault); err != nil {
+				return GenesisState{}, fmt.Errorf("validate pending penalty fault: %w", err)
+			}
+		}
 	}
 	return genesis, nil
 }
@@ -130,6 +144,9 @@ func (m AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.R
 	if err := m.keeper.SetParams(ctx, genesis.Params); err != nil {
 		panic(fmt.Errorf("initialize penalty parameters: %w", err))
 	}
+	if err := m.keeper.SetPendingFaults(ctx, genesis.PendingFaults); err != nil {
+		panic(fmt.Errorf("initialize pending penalty faults: %w", err))
+	}
 }
 
 func (m AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {
@@ -137,7 +154,13 @@ func (m AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawM
 	if err != nil {
 		panic(fmt.Errorf("export penalty parameters: %w", err))
 	}
-	return mustMarshalGenesis(GenesisState{Params: params})
+	faults, err := m.keeper.GetPendingFaults(ctx)
+	if err != nil {
+		panic(fmt.Errorf("export pending penalty faults: %w", err))
+	}
+	return mustMarshalGenesis(GenesisState{Params: params, PendingFaults: faults})
 }
 
-func (m AppModule) ConsensusVersion() uint64 { return 1 }
+func (m AppModule) ConsensusVersion() uint64 { return 2 }
+
+func (m AppModule) EndBlock(ctx context.Context) error { return m.keeper.ApplyPendingFaults(ctx) }

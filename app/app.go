@@ -160,7 +160,7 @@ func NewChaosChainApp(
 	}
 
 	feeMarketKeeper := feemarketkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(feeMarketKey))
-	penaltyKeeper := penaltykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(penaltyKey))
+	penaltyKeeper := penaltykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(penaltyKey), stakingKeeper)
 	mintKeeper := mintkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(mintKey),
@@ -181,7 +181,7 @@ func NewChaosChainApp(
 	runtimeApp.ModuleManager.SetOrderBeginBlockers("mint", "distribution", "slashing", "staking", "bank")
 	runtimeApp.ModuleManager.SetOrderInitGenesis("auth", "bank", "staking", "mint", "distribution", "slashing", "gov", "upgrade", "genutil", "consensus", feemarketmodule.ModuleName, penaltymodule.ModuleName)
 	runtimeApp.ModuleManager.SetOrderExportGenesis("auth", "bank", "staking", "mint", "distribution", "slashing", "gov", "upgrade", "genutil", "consensus", feemarketmodule.ModuleName, penaltymodule.ModuleName)
-	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", "gov", feemarketmodule.ModuleName)
+	runtimeApp.ModuleManager.SetOrderEndBlockers("staking", "bank", "gov", feemarketmodule.ModuleName, penaltymodule.ModuleName)
 
 	if err := runtimeApp.Load(loadLatest); err != nil {
 		panic(fmt.Errorf("load application state: %w", err))

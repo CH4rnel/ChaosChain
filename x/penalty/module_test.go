@@ -1,10 +1,12 @@
 package penalty
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
 	"cosmossdk.io/log/v2"
+	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -30,6 +32,46 @@ func TestGenesisRoundTrip(t *testing.T) {
 	var got GenesisState
 	require.NoError(t, json.Unmarshal(module.ExportGenesis(ctx, c), &got))
 	require.Equal(t, want, got)
+}
+
+func TestGenesisRoundTripPreservesPendingFaults(t *testing.T) {
+	key := storetypes.NewKVStoreKey(ModuleName)
+	testContext := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_penalty"))
+	ctx := testContext.Ctx.WithLogger(log.NewNopLogger())
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	k := keeper.NewKeeper(c, runtime.NewKVStoreService(key))
+	module := NewAppModule(c, k)
+	want := GenesisState{
+		Params: domain.DefaultParams(),
+		PendingFaults: []keeper.CorrelatedFault{{
+			ConsensusAddress: bytes.Repeat([]byte{0x2a}, 20),
+			InfractionHeight: 3,
+			Power:            10,
+			FaultyShare:      sdkmath.LegacyMustNewDecFromStr("0.25"),
+		}},
+	}
+
+	module.InitGenesis(ctx, c, mustMarshalGenesis(want))
+
+	var got GenesisState
+	require.NoError(t, json.Unmarshal(module.ExportGenesis(ctx, c), &got))
+	require.Equal(t, want, got)
+}
+
+func TestValidateGenesisRejectsMalformedPendingFault(t *testing.T) {
+	c := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
+	genesis := GenesisState{
+		Params: domain.DefaultParams(),
+		PendingFaults: []keeper.CorrelatedFault{{
+			ConsensusAddress: bytes.Repeat([]byte{0x2a}, 20),
+			InfractionHeight: 3,
+			Power:            0,
+			FaultyShare:      sdkmath.LegacyMustNewDecFromStr("0.25"),
+		}},
+	}
+
+	err := (AppModule{}).ValidateGenesis(c, nil, mustMarshalGenesis(genesis))
+	require.ErrorContains(t, err, "validator power must be positive")
 }
 
 func TestValidateGenesisRejectsInvalidPenaltyConfiguration(t *testing.T) {
