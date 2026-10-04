@@ -71,6 +71,7 @@ alice_name="$(jq -er --arg validator "$validator_name" '.accounts[] | select(.na
 gas="$(jq -er '.smoke.gas' "$profile")"
 fee="$(jq -er '.smoke.fee' "$profile")"
 transfer="$(jq -er '.smoke.transfer' "$profile")"
+delegation="$(jq -er '.smoke.delegation' "$profile")"
 expected_genesis="$(jq -er '.genesis_sha256' "${network_root}/network.json")"
 
 for index in $(seq 1 "$validator_count"); do
@@ -94,12 +95,24 @@ done
 
 node1_rpc="$(jq -er '.nodes[0].rpc_port' "${network_root}/network.json")"
 node2_rpc="$(jq -er '.nodes[1].rpc_port' "${network_root}/network.json")"
+node3_rpc="$(jq -er '.nodes[2].rpc_port' "${network_root}/network.json")"
 alice_address="$($binary keys show "$alice_name" -a --keyring-backend test --home "${network_root}/node1" 2>/dev/null)"
+validator_operator="$($binary keys show "$validator_name" -a --bech val --keyring-backend test --home "${network_root}/node1" 2>/dev/null)"
 initial_balance="$($binary query bank balances "$alice_address" --node "tcp://127.0.0.1:${node2_rpc}" --home "${network_root}/node2" --output json 2>/dev/null | jq -er --arg denom "$base_denom" '.balances[] | select(.denom == $denom) | .amount')"
 send_response="$($binary tx bank send "$validator_name" "$alice_address" "${transfer}${base_denom}" --chain-id "$chain_id" --keyring-backend test --gas "$gas" --fees "${fee}${base_denom}" --yes --node "tcp://127.0.0.1:${node1_rpc}" --home "${network_root}/node1" --output json 2>/dev/null)"
 wait_for_tx "$node2_rpc" "$(jq -er '.txhash' <<<"$send_response")"
 updated_balance="$($binary query bank balances "$alice_address" --node "tcp://127.0.0.1:${node2_rpc}" --home "${network_root}/node2" --output json 2>/dev/null | jq -er --arg denom "$base_denom" '.balances[] | select(.denom == $denom) | .amount')"
 [[ "$updated_balance" -eq $((initial_balance + transfer)) ]]
+
+delegate_response="$($binary tx staking delegate "$validator_operator" "${delegation}${base_denom}" --from "$alice_name" --chain-id "$chain_id" --keyring-backend test --gas "$gas" --fees "${fee}${base_denom}" --yes --node "tcp://127.0.0.1:${node1_rpc}" --home "${network_root}/node1" --output json 2>/dev/null)"
+wait_for_tx "$node2_rpc" "$(jq -er '.txhash' <<<"$delegate_response")"
+delegated="$($binary query staking delegation "$alice_address" "$validator_operator" --node "tcp://127.0.0.1:${node2_rpc}" --home "${network_root}/node2" --output json 2>&1 | sed '/^WARNING:/d' | jq -er '.delegation_response.balance.amount')"
+[[ "$delegated" == "$delegation" ]]
+
+unbond_response="$($binary tx staking unbond "$validator_operator" "${delegation}${base_denom}" --from "$alice_name" --chain-id "$chain_id" --keyring-backend test --gas "$gas" --fees "${fee}${base_denom}" --yes --node "tcp://127.0.0.1:${node1_rpc}" --home "${network_root}/node1" --output json 2>/dev/null)"
+wait_for_tx "$node3_rpc" "$(jq -er '.txhash' <<<"$unbond_response")"
+unbonding="$($binary query staking unbonding-delegation "$alice_address" "$validator_operator" --node "tcp://127.0.0.1:${node3_rpc}" --home "${network_root}/node3" --output json 2>&1 | sed '/^WARNING:/d' | jq -er '[.unbond.entries[].balance | tonumber] | add')"
+[[ "$unbonding" -eq "$delegation" ]]
 
 offline_index="$validator_count"
 offline_rpc="$(jq -er --argjson index "$offline_index" '.nodes[] | select(.index == $index) | .rpc_port' "${network_root}/network.json")"
