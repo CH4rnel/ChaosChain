@@ -15,6 +15,8 @@ jq -e '
   (.staking.self_delegation | type == "string" and test("^[1-9][0-9]*$")) and
   (.governance.minimum_deposit | type == "string" and test("^[1-9][0-9]*$")) and
   (.minimum_gas_price | type == "string" and test("^(0|[1-9][0-9]*)([.][0-9]+)?$")) and
+  (all(.smoke.gas, .smoke.fee, .smoke.transfer, .smoke.delegation; type == "string" and test("^[1-9][0-9]*$"))) and
+  ((.smoke.fee | tonumber) >= ((.smoke.gas | tonumber) * (.minimum_gas_price | tonumber))) and
   (.accounts | type == "array" and length >= 2) and
   (all(.accounts[]; (.name | type == "string" and length > 0) and (.balance | type == "string" and test("^[1-9][0-9]*$")))) and
   ([.accounts[].name] | unique | length) == (.accounts | length) and

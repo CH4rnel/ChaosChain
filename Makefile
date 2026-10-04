@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: build test test-cover test-cli-smoke lint sast vuln sbom clean install-tools clean-tools
+.PHONY: build test test-cover check-network-profile test-cli-smoke lint sast vuln sbom clean install-tools clean-tools
 
 GOCMD=go
 GOTEST=$(GOCMD) test
@@ -23,7 +23,10 @@ test-cover:
 	$(GOTEST) -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 
-test-cli-smoke:
+check-network-profile:
+	bash scripts/check-network-profile.sh
+
+test-cli-smoke: check-network-profile
 	bash scripts/test-cli-smoke.sh
 
 clean-tools:

@@ -24,5 +24,11 @@
       "balance": "1000000000"
     }
   ],
-  "minimum_gas_price": "0.025"
+  "minimum_gas_price": "0.025",
+  "smoke": {
+    "gas": "200000",
+    "fee": "5000",
+    "transfer": "10000",
+    "delegation": "1000"
+  }
 }
