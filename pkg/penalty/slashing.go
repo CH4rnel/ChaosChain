@@ -3,7 +3,11 @@ package penalty
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"strconv"
+
+	sdkmath "cosmossdk.io/math"
 )
 
 // Maximum reasonable limits for parameters
@@ -63,4 +67,33 @@ func CalculateSlashFraction(faultyShare float64, p Params) (float64, error) {
 	}
 
 	return slashFraction, nil
+}
+
+// CalculateSlashFractionDec computes the consensus-safe slashing fraction.
+func CalculateSlashFractionDec(faultyShare sdkmath.LegacyDec, p Params) (sdkmath.LegacyDec, error) {
+	if err := ValidateParams(p); err != nil {
+		return sdkmath.LegacyDec{}, err
+	}
+	if faultyShare.IsNegative() || faultyShare.GT(sdkmath.LegacyOneDec()) {
+		return sdkmath.LegacyDec{}, errors.New("faultyShare must be in the range [0.0, 1.0]")
+	}
+
+	baseSlash, err := legacyDecFromFloat(p.BaseSlash)
+	if err != nil {
+		return sdkmath.LegacyDec{}, fmt.Errorf("convert baseSlash: %w", err)
+	}
+	kappa, err := legacyDecFromFloat(p.Kappa)
+	if err != nil {
+		return sdkmath.LegacyDec{}, fmt.Errorf("convert kappa: %w", err)
+	}
+
+	fraction := baseSlash.Add(kappa.Mul(faultyShare).Mul(faultyShare))
+	if fraction.GT(sdkmath.LegacyOneDec()) {
+		return sdkmath.LegacyOneDec(), nil
+	}
+	return fraction, nil
+}
+
+func legacyDecFromFloat(value float64) (sdkmath.LegacyDec, error) {
+	return sdkmath.LegacyNewDecFromStr(strconv.FormatFloat(value, 'g', -1, 64))
 }

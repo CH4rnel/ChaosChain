@@ -3,6 +3,8 @@ package penalty
 import (
 	"math"
 	"testing"
+
+	sdkmath "cosmossdk.io/math"
 )
 
 // TestCalculateSlashFraction_Basic verifies base slashing without correlation penalty.
@@ -119,5 +121,35 @@ func TestCalculateSlashFractionRejectsNonFiniteInputs(t *testing.T) {
 func TestDefaultParamsAreValid(t *testing.T) {
 	if err := ValidateParams(DefaultParams()); err != nil {
 		t.Fatalf("default parameters must be valid: %v", err)
+	}
+}
+
+func TestCalculateSlashFractionDecUsesExactDecimalArithmetic(t *testing.T) {
+	fraction, err := CalculateSlashFractionDec(
+		sdkmath.LegacyMustNewDecFromStr("0.3"),
+		Params{BaseSlash: 0.05, Kappa: 2},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := fraction.String(), "0.230000000000000000"; got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+}
+
+func TestCalculateSlashFractionDecCapsAndValidatesFaultyShare(t *testing.T) {
+	fraction, err := CalculateSlashFractionDec(
+		sdkmath.LegacyMustNewDecFromStr("0.5"),
+		Params{BaseSlash: 0.5, Kappa: 10},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !fraction.Equal(sdkmath.LegacyOneDec()) {
+		t.Fatalf("expected fraction to be capped at one, got %s", fraction)
+	}
+
+	if _, err := CalculateSlashFractionDec(sdkmath.LegacyMustNewDecFromStr("1.1"), DefaultParams()); err == nil {
+		t.Fatal("expected out-of-range faulty share to be rejected")
 	}
 }
