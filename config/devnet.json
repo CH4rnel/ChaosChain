@@ -1,0 +1,28 @@
+{
+  "chain_id": "chaos-devnet-1",
+  "moniker": "chaos-validator",
+  "token": {
+    "base_denom": "uchaos",
+    "display_denom": "CHAOS",
+    "decimals": 6
+  },
+  "staking": {
+    "unbonding_time": "1814400s",
+    "validator_account": "validator",
+    "self_delegation": "100000000000"
+  },
+  "governance": {
+    "minimum_deposit": "10000000"
+  },
+  "accounts": [
+    {
+      "name": "validator",
+      "balance": "1000000000000"
+    },
+    {
+      "name": "alice",
+      "balance": "1000000000"
+    }
+  ],
+  "minimum_gas_price": "0.025"
+}
