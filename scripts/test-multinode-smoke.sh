@@ -24,6 +24,26 @@ start_node() {
 	pids[index]=$!
 }
 
+stop_node() {
+	local index="$1"
+	local pid="${pids[$index]}"
+	kill -TERM "$pid"
+	wait "$pid" 2>/dev/null || true
+	if kill -0 "$pid" 2>/dev/null; then
+		echo "node ${index} process ${pid} survived shutdown" >&2
+		return 1
+	fi
+	unset 'pids[index]'
+}
+
+stop_network() {
+	local count="$1"
+	local index
+	for index in $(seq 1 "$count"); do
+		stop_node "$index"
+	done
+}
+
 wait_for_height() {
 	local port="$1"
 	local target="$2"
@@ -116,8 +136,7 @@ unbonding="$($binary query staking unbonding-delegation "$alice_address" "$valid
 
 offline_index="$validator_count"
 offline_rpc="$(jq -er --argjson index "$offline_index" '.nodes[] | select(.index == $index) | .rpc_port' "${network_root}/network.json")"
-kill -TERM "${pids[$offline_index]}"
-wait "${pids[$offline_index]}" 2>/dev/null || true
+stop_node "$offline_index"
 survivor_height="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.sync_info.latest_block_height | tonumber')"
 recovery_height=$((survivor_height + 2))
 wait_for_height "$node1_rpc" "$recovery_height"
@@ -126,4 +145,18 @@ start_node "$offline_index"
 wait_for_height "$offline_rpc" "$recovery_height"
 [[ "$(block_hash "$offline_rpc" "$recovery_height")" == "$(block_hash "$node1_rpc" "$recovery_height")" ]]
 
-echo "four-validator devnet preserved consensus transfer state and node recovery at height ${recovery_height}"
+cold_height="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.sync_info.latest_block_height | tonumber')"
+stop_network "$validator_count"
+for index in $(seq 1 "$validator_count"); do
+	start_node "$index"
+done
+cold_recovery_height=$((cold_height + 2))
+wait_for_height "$node1_rpc" "$cold_recovery_height"
+cold_recovery_hash="$(block_hash "$node1_rpc" "$cold_recovery_height")"
+for index in $(seq 2 "$validator_count"); do
+	rpc_port="$(jq -er --argjson index "$index" '.nodes[] | select(.index == $index) | .rpc_port' "${network_root}/network.json")"
+	wait_for_height "$rpc_port" "$cold_recovery_height"
+	[[ "$(block_hash "$rpc_port" "$cold_recovery_height")" == "$cold_recovery_hash" ]]
+done
+
+echo "four-validator devnet preserved consensus and recovered from a full stop at height ${cold_recovery_height}"
