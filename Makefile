@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: build test test-cover check-network-profile test-cli-smoke lint sast vuln sbom clean install-tools clean-tools
+.PHONY: build test test-cover check-network-profile test-cli-smoke test-multinode-smoke lint sast vuln sbom clean install-tools clean-tools
 
 GOCMD=go
 GOTEST=$(GOCMD) test
@@ -28,6 +28,9 @@ check-network-profile:
 
 test-cli-smoke: check-network-profile
 	bash scripts/test-cli-smoke.sh
+
+test-multinode-smoke: check-network-profile
+	bash scripts/test-multinode-smoke.sh
 
 clean-tools:
 	@echo "Removing old golangci-lint binary..."
