@@ -143,7 +143,7 @@ stop_node "$offline_index"
 survivor_height="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.sync_info.latest_block_height | tonumber')"
 offline_recovery_height=$((survivor_height + 8))
 offline_transfer_count=3
-for transfer_index in $(seq 1 "$offline_transfer_count"); do
+for _ in $(seq 1 "$offline_transfer_count"); do
 	backlog_send="$($binary tx bank send "$validator_name" "$alice_address" "${transfer}${base_denom}" --chain-id "$chain_id" --keyring-backend test --gas "$gas" --fees "${fee}${base_denom}" --yes --node "tcp://127.0.0.1:${node1_rpc}" --home "${network_root}/node1" --output json 2>/dev/null)"
 	wait_for_tx "$node2_rpc" "$(jq -er '.txhash' <<<"$backlog_send")"
 done
@@ -155,6 +155,10 @@ persisted_balance="$backlog_balance"
 start_node "$offline_index"
 wait_for_height "$offline_rpc" "$offline_recovery_height"
 [[ "$(block_hash "$offline_rpc" "$offline_recovery_height")" == "$(block_hash "$node1_rpc" "$offline_recovery_height")" ]]
+recovered_peers="$(curl -fsS "http://127.0.0.1:${offline_rpc}/net_info" | jq -er '.result.n_peers | tonumber')"
+[[ "$recovered_peers" -ge 3 ]]
+offline_node_balance="$($binary query bank balances "$alice_address" --node "tcp://127.0.0.1:${offline_rpc}" --home "${network_root}/node${offline_index}" --output json 2>/dev/null | jq -er --arg denom "$base_denom" '.balances[] | select(.denom == $denom) | .amount')"
+[[ "$offline_node_balance" -eq "$backlog_balance" ]]
 
 cold_height="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.sync_info.latest_block_height | tonumber')"
 stop_network "$validator_count"
