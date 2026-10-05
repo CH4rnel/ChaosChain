@@ -141,12 +141,12 @@ offline_index="$validator_count"
 offline_rpc="$(jq -er --argjson index "$offline_index" '.nodes[] | select(.index == $index) | .rpc_port' "${network_root}/network.json")"
 stop_node "$offline_index"
 survivor_height="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.sync_info.latest_block_height | tonumber')"
-recovery_height=$((survivor_height + 2))
-wait_for_height "$node1_rpc" "$recovery_height"
+offline_recovery_height=$((survivor_height + 8))
+wait_for_height "$node1_rpc" "$offline_recovery_height"
 
 start_node "$offline_index"
-wait_for_height "$offline_rpc" "$recovery_height"
-[[ "$(block_hash "$offline_rpc" "$recovery_height")" == "$(block_hash "$node1_rpc" "$recovery_height")" ]]
+wait_for_height "$offline_rpc" "$offline_recovery_height"
+[[ "$(block_hash "$offline_rpc" "$offline_recovery_height")" == "$(block_hash "$node1_rpc" "$offline_recovery_height")" ]]
 
 cold_height="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.sync_info.latest_block_height | tonumber')"
 stop_network "$validator_count"
