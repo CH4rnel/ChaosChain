@@ -4,6 +4,10 @@
 GOCMD=go
 GOTEST=$(GOCMD) test
 GOBUILD=$(GOCMD) build
+VERSION?=$(shell git describe --tags --always --dirty)
+COMMIT?=$(shell git rev-parse HEAD)
+BUILD_TIME?=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+BUILD_LDFLAGS=-X github.com/CH4rnel/ChaosChain/internal/buildinfo.Version=$(VERSION) -X github.com/CH4rnel/ChaosChain/internal/buildinfo.Commit=$(COMMIT) -X github.com/CH4rnel/ChaosChain/internal/buildinfo.BuildTime=$(BUILD_TIME)
 
 # Explicitly resolve the path to GOPATH to avoid conflicts with /usr/bin.
 GOPATH=$(shell go env GOPATH)
@@ -14,7 +18,8 @@ GOLANGCI_LINT_VERSION=latest
 GOSEC_VERSION=v2.22.3
 
 build:
-	$(GOBUILD) -v -o ./bin/chaoschaind ./cmd/chaoschaind
+	mkdir -p ./bin
+	$(GOBUILD) -v -ldflags "$(BUILD_LDFLAGS)" -o ./bin/chaoschaind ./cmd/chaoschaind
 
 test:
 	$(GOTEST) -race -count=1 ./...

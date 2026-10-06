@@ -55,6 +55,7 @@ import (
 	upgrademodule "github.com/cosmos/cosmos-sdk/x/upgrade"
 	"github.com/spf13/cobra"
 
+	"github.com/CH4rnel/ChaosChain/internal/buildinfo"
 	feemarketmodule "github.com/CH4rnel/ChaosChain/x/feemarket"
 	feemarketkeeper "github.com/CH4rnel/ChaosChain/x/feemarket/keeper"
 	penaltymodule "github.com/CH4rnel/ChaosChain/x/penalty"
@@ -291,6 +292,7 @@ func NewRootCmd() *cobra.Command {
 	nativeStartCmd.Use = "start-native"
 	rootCmd.AddCommand(nativeStartCmd)
 	rootCmd.AddCommand(server.StatusCommand())
+	rootCmd.AddCommand(buildinfo.Command())
 	rootCmd.AddCommand(newTxCommand())
 	rootCmd.AddCommand(newQueryCommand())
 	if err := addModuleCLICommands(rootCmd, clientCtx); err != nil {

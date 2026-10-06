@@ -165,6 +165,7 @@ func TestRootCmdIncludesValidatorBootstrapCommands(t *testing.T) {
 		{"start"},
 		{"start-native"},
 		{"status"},
+		{"version"},
 		{"tx", "bank", "send"},
 		{"tx", "staking", "delegate"},
 		{"tx", "gov"},
