@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: build test test-cover check-network-profile test-cli-smoke test-multinode-smoke lint sast vuln sbom clean install-tools clean-tools
+.PHONY: build release test test-cover check-network-profile test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
 
 GOCMD=go
 GOTEST=$(GOCMD) test
@@ -21,6 +21,9 @@ build:
 	mkdir -p ./bin
 	$(GOBUILD) -v -ldflags "$(BUILD_LDFLAGS)" -o ./bin/chaoschaind ./cmd/chaoschaind
 
+release:
+	VERSION="$(VERSION)" COMMIT="$(COMMIT)" BUILD_TIME="$(BUILD_TIME)" bash scripts/build-release.sh
+
 test:
 	$(GOTEST) -race -count=1 ./...
 
@@ -36,6 +39,9 @@ test-cli-smoke: check-network-profile
 
 test-multinode-smoke: check-network-profile
 	bash scripts/test-multinode-smoke.sh
+
+test-release:
+	bash scripts/test-release.sh
 
 clean-tools:
 	@echo "Removing old golangci-lint binary..."
