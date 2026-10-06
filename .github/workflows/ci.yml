@@ -114,6 +114,34 @@ jobs:
           name: sbom
           path: sbom.json
 
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Verify release packaging
+        run: make test-release
+      - name: Build validator release bundle
+        run: |
+          VERSION="ci-${GITHUB_SHA::12}" \
+          COMMIT="$GITHUB_SHA" \
+          BUILD_TIME="$(git show -s --format=%cI "$GITHUB_SHA")" \
+          bash scripts/build-release.sh dist
+      - name: Upload validator release bundle
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3
+        with:
+          name: chaoschain-linux-amd64-${{ github.sha }}
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+
   shellcheck:
     runs-on: ubuntu-latest
     steps:
