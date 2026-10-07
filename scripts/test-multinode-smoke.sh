@@ -104,8 +104,13 @@ done
 
 for index in $(seq 1 "$validator_count"); do
 	rpc_port="$(jq -er --argjson index "$index" '.nodes[] | select(.index == $index) | .rpc_port' "${network_root}/network.json")"
+	metrics_port="$(jq -er --argjson index "$index" '.nodes[] | select(.index == $index) | .metrics_port' "${network_root}/network.json")"
 	wait_for_height "$rpc_port" 2
 	scripts/check-validator-health.sh "http://127.0.0.1:${rpc_port}" "$chain_id" 3
+	metrics="$(curl -fsS --max-time 5 "http://127.0.0.1:${metrics_port}/metrics")"
+	grep -Eq '^cometbft_p2p_peers(\{| )' <<<"$metrics"
+	grep -Eq '^cometbft_consensus_validator_last_signed_height(\{| )' <<<"$metrics"
+	grep -Eq '^cometbft_consensus_validator_missed_blocks(\{| )' <<<"$metrics"
 done
 
 reference_hash="$(block_hash "$(jq -er '.nodes[0].rpc_port' "${network_root}/network.json")" 2)"

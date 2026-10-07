@@ -22,6 +22,7 @@ jq -e '
   (.multinode.self_delegation | type == "string" and test("^[1-9][0-9]*$")) and
   ((.multinode.validator_balance | tonumber) >= (.multinode.self_delegation | tonumber)) and
   (.multinode.port_stride | type == "number" and . >= 8 and floor == .) and
+  (.multinode.ports | has("metrics")) and
   (all(.multinode.ports[]; type == "number" and . >= 1024 and . <= 65000 and floor == .)) and
   ([.multinode.ports[]] | unique | length) == (.multinode.ports | length) and
   (([.multinode.ports[]] | max) + ((.multinode.validator_count - 1) * .multinode.port_stride) <= 65535) and
