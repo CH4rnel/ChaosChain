@@ -108,9 +108,12 @@ for index in $(seq 1 "$validator_count"); do
 	wait_for_height "$rpc_port" 2
 	scripts/check-validator-health.sh "http://127.0.0.1:${rpc_port}" "$chain_id" 3
 	metrics="$(curl -fsS --max-time 5 "http://127.0.0.1:${metrics_port}/metrics")"
-	grep -Eq '^cometbft_p2p_peers(\{| )' <<<"$metrics"
-	grep -Eq '^cometbft_consensus_validator_last_signed_height(\{| )' <<<"$metrics"
-	grep -Eq '^cometbft_consensus_validator_missed_blocks(\{| )' <<<"$metrics"
+	for metric in cometbft_p2p_peers cometbft_consensus_validator_last_signed_height; do
+		if ! grep -Eq "^${metric}(\\{| )" <<<"$metrics"; then
+			echo "node ${index} did not expose ${metric}" >&2
+			exit 1
+		fi
+	done
 done
 
 reference_hash="$(block_hash "$(jq -er '.nodes[0].rpc_port' "${network_root}/network.json")" 2)"

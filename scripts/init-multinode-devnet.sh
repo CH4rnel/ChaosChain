@@ -30,6 +30,7 @@ rpc_base="$(jq -er '.multinode.ports.rpc' "$profile")"
 grpc_base="$(jq -er '.multinode.ports.grpc' "$profile")"
 api_base="$(jq -er '.multinode.ports.api' "$profile")"
 pprof_base="$(jq -er '.multinode.ports.pprof' "$profile")"
+metrics_base="$(jq -er '.multinode.ports.metrics' "$profile")"
 minimum_gas_price="$(jq -er '.minimum_gas_price' "$profile")"
 mkdir -p "$network_root"
 first_home="${network_root}/node1"
@@ -72,6 +73,7 @@ for index in $(seq 1 "$validator_count"); do
 	grpc_port=$((grpc_base + offset))
 	api_port=$((api_base + offset))
 	pprof_port=$((pprof_base + offset))
+	metrics_port=$((metrics_base + offset))
 
 	if [[ "$index" -gt 1 ]]; then
 		cp "$genesis" "${home}/config/genesis.json"
@@ -91,6 +93,7 @@ for index in $(seq 1 "$validator_count"); do
 	app_config="${home}/config/app.toml"
 	sed -i -E "/^\[rpc\]/,/^\[p2p\]/{s|^laddr = .*|laddr = \"tcp://127.0.0.1:${rpc_port}\"|; s|^pprof_laddr = .*|pprof_laddr = \"localhost:${pprof_port}\"|}" "$config"
 	sed -i -E "/^\[p2p\]/,/^\[mempool\]/{s|^laddr = .*|laddr = \"tcp://127.0.0.1:${p2p_port}\"|; s|^persistent_peers = .*|persistent_peers = \"${peers}\"|; s|^allow_duplicate_ip = .*|allow_duplicate_ip = true|}" "$config"
+	sed -i -E -e 's|^prometheus = .*|prometheus = true|' -e "s|^prometheus_listen_addr = .*|prometheus_listen_addr = \"127.0.0.1:${metrics_port}\"|" "$config"
 	sed -i -E "/^\[api\]/,/^\[grpc\]/{s|^address = .*|address = \"tcp://localhost:${api_port}\"|}" "$app_config"
 	sed -i -E "/^\[grpc\]/,/^\[grpc-web\]/{s|^address = .*|address = \"localhost:${grpc_port}\"|}" "$app_config"
 	sed -i -E "s|^minimum-gas-prices = .*|minimum-gas-prices = \"${minimum_gas_price}${base_denom}\"|" "$app_config"
@@ -102,7 +105,8 @@ for index in $(seq 1 "$validator_count"); do
 		--argjson p2p "$p2p_port" \
 		--argjson rpc "$rpc_port" \
 		--argjson grpc "$grpc_port" \
-		'. + [{index: $index, home: $home, node_id: $id, p2p_port: $p2p, rpc_port: $rpc, grpc_port: $grpc}]' <<<"$nodes")"
+		--argjson metrics "$metrics_port" \
+		'. + [{index: $index, home: $home, node_id: $id, p2p_port: $p2p, rpc_port: $rpc, grpc_port: $grpc, metrics_port: $metrics}]' <<<"$nodes")"
 done
 
 jq -n --arg chain_id "$chain_id" --arg genesis_sha256 "$(sha256sum "$genesis" | cut -d ' ' -f 1)" --argjson nodes "$nodes" \

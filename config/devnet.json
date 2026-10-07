@@ -43,7 +43,8 @@
       "grpc": 9190,
       "grpc_web": 9191,
       "api": 1417,
-      "pprof": 6160
+      "pprof": 6160,
+      "metrics": 27660
     }
   }
 }
