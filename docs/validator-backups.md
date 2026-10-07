@@ -8,15 +8,12 @@ scripts/backup-validator-home.sh /var/lib/chaoschaind /srv/chaoschain-backups/no
 
 The destination directory must already exist and must be outside the validator home. The command refuses to replace an existing archive or checksum. Keep both generated files together and store a copy somewhere that does not share the node's disk failure domain.
 
-Check the archive before restoring it:
+Restore the archive into a new path after stopping the validator and confirming that its original process has exited:
 
 ```sh
-cd /srv/chaoschain-backups
-sha256sum -c node1-2026-10-07.tar.gz.sha256
-mkdir /var/lib/chaoschaind-restore
-tar -xzf node1-2026-10-07.tar.gz -C /var/lib/chaoschaind-restore
+scripts/restore-validator-home.sh /srv/chaoschain-backups/node1-2026-10-07.tar.gz /var/lib/chaoschaind-restore --confirm-stopped
 ```
 
-Restore into a new, empty directory for the same validator and network. Do not merge an old home into a running node or copy one validator's state into another validator's identity. Before starting the restored node, check its chain configuration and genesis against the intended network, then use the normal process supervisor and health probe to confirm recovery.
+The restore command checks the adjacent checksum, extracts into a private temporary directory, and then creates the requested home path. That path must not already exist. Restore only for the same validator and network. Never run the original home and its restored copy at the same time: both contain the same validator signing key. Before starting the restored node, check its chain configuration and genesis against the intended network, set ownership for the daemon user, then use the normal process supervisor and health probe to confirm recovery.
 
-This is an offline file archive, not a hot snapshot, remote backup service, retention policy, or disaster-recovery rehearsal. A checksum detects accidental archive corruption; it does not prove the archive is recent or restorable until an operator tests the restore.
+The four-validator CI rehearsal now replaces one stopped node home with a restored archive, verifies its validator identity and application state, and checks that all four nodes agree after restart. The checksum detects accidental archive corruption; it does not authenticate the archive or prove that an operator's own backup is recent.

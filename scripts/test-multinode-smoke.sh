@@ -159,7 +159,14 @@ offline_node_balance="$($binary query bank balances "$alice_address" --node "tcp
 [[ "$offline_node_balance" -eq "$backlog_balance" ]]
 
 cold_height="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.sync_info.latest_block_height | tonumber')"
+validator_address="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.validator_info.address')"
+validator_key_sha="$(sha256sum "${network_root}/node1/config/priv_validator_key.json" | cut -d ' ' -f 1)"
 stop_network "$validator_count"
+backup_archive="${smoke_dir}/node1-before-upgrade.tar.gz"
+scripts/backup-validator-home.sh "${network_root}/node1" "$backup_archive" --confirm-stopped
+mv "${network_root}/node1" "${smoke_dir}/node1-original"
+scripts/restore-validator-home.sh "$backup_archive" "${network_root}/node1" --confirm-stopped
+[[ "$(sha256sum "${network_root}/node1/config/priv_validator_key.json" | cut -d ' ' -f 1)" == "$validator_key_sha" ]]
 go build -ldflags=-buildid=chaoschain-upgrade-rehearsal -o "$replacement_binary" ./cmd/chaoschaind
 replacement_binary_sha="$(sha256sum "$replacement_binary" | cut -d ' ' -f 1)"
 [[ "$replacement_binary_sha" != "$original_binary_sha" ]]
@@ -169,6 +176,7 @@ for index in $(seq 1 "$validator_count"); do
 done
 cold_recovery_height=$((cold_height + 2))
 wait_for_height "$node1_rpc" "$cold_recovery_height"
+[[ "$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.validator_info.address')" == "$validator_address" ]]
 cold_recovery_hash="$(block_hash "$node1_rpc" "$cold_recovery_height")"
 for index in $(seq 2 "$validator_count"); do
 	rpc_port="$(jq -er --argjson index "$index" '.nodes[] | select(.index == $index) | .rpc_port' "${network_root}/network.json")"
@@ -178,7 +186,9 @@ done
 
 recovered_balance="$($binary query bank balances "$alice_address" --node "tcp://127.0.0.1:${node2_rpc}" --home "${network_root}/node2" --output json 2>/dev/null | jq -er --arg denom "$base_denom" '.balances[] | select(.denom == $denom) | .amount')"
 [[ "$recovered_balance" == "$persisted_balance" ]]
+restored_balance="$($binary query bank balances "$alice_address" --node "tcp://127.0.0.1:${node1_rpc}" --home "${network_root}/node1" --output json 2>/dev/null | jq -er --arg denom "$base_denom" '.balances[] | select(.denom == $denom) | .amount')"
+[[ "$restored_balance" == "$persisted_balance" ]]
 recovered_unbonding="$($binary query staking unbonding-delegation "$alice_address" "$validator_operator" --node "tcp://127.0.0.1:${node3_rpc}" --home "${network_root}/node3" --output json 2>&1 | sed '/^WARNING:/d' | jq -er '[.unbond.entries[].balance | tonumber] | add')"
 [[ "$recovered_unbonding" -eq "$unbonding" ]]
 
-echo "four-validator devnet preserved consensus and application state across binary replacement at height ${cold_recovery_height}"
+echo "four-validator devnet restored a validator home and preserved consensus and application state across binary replacement at height ${cold_recovery_height}"
