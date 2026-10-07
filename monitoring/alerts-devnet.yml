@@ -1,0 +1,33 @@
+groups:
+  - name: chaoschain-validators
+    rules:
+      - alert: ChaosChainValidatorUnavailable
+        expr: up{job="chaoschain-devnet"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Validator metrics endpoint is unreachable
+
+      - alert: ChaosChainValidatorPeersLow
+        expr: cometbft_p2p_peers{job="chaoschain-devnet"} < 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Validator has fewer than two peers
+
+      - alert: ChaosChainValidatorSigningStalled
+        expr: max by (instance) (cometbft_consensus_latest_block_height{job="chaoschain-devnet"}) - max by (instance) (cometbft_consensus_validator_last_signed_height{job="chaoschain-devnet"}) > 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Validator is falling behind the latest signed height
+
+      - alert: ChaosChainValidatorMissedBlocksRising
+        expr: delta(cometbft_consensus_validator_missed_blocks{job="chaoschain-devnet"}[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Validator missed block count rose in the last five minutes

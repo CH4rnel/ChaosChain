@@ -77,6 +77,14 @@ jobs:
       - name: Run four-validator recovery journey
         run: make test-multinode-smoke
 
+  monitoring:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - name: Validate Prometheus monitoring rules
+        run: make check-monitoring
+
   sast:
     runs-on: ubuntu-latest
     steps:

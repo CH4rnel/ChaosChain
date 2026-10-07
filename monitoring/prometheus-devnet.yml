@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - alerts-devnet.yml
+
+scrape_configs:
+  - job_name: chaoschain-devnet
+    static_configs:
+      - targets:
+          - 127.0.0.1:27660
+          - 127.0.0.1:27670
+          - 127.0.0.1:27680
+          - 127.0.0.1:27690
