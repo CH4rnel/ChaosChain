@@ -105,8 +105,7 @@ done
 for index in $(seq 1 "$validator_count"); do
 	rpc_port="$(jq -er --argjson index "$index" '.nodes[] | select(.index == $index) | .rpc_port' "${network_root}/network.json")"
 	wait_for_height "$rpc_port" 2
-	peers="$(curl -fsS "http://127.0.0.1:${rpc_port}/net_info" | jq -er '.result.n_peers | tonumber')"
-	[[ "$peers" -ge 3 ]]
+	scripts/check-validator-health.sh "http://127.0.0.1:${rpc_port}" "$chain_id" 3
 done
 
 reference_hash="$(block_hash "$(jq -er '.nodes[0].rpc_port' "${network_root}/network.json")" 2)"
@@ -155,8 +154,7 @@ persisted_balance="$backlog_balance"
 start_node "$offline_index"
 wait_for_height "$offline_rpc" "$offline_recovery_height"
 [[ "$(block_hash "$offline_rpc" "$offline_recovery_height")" == "$(block_hash "$node1_rpc" "$offline_recovery_height")" ]]
-recovered_peers="$(curl -fsS "http://127.0.0.1:${offline_rpc}/net_info" | jq -er '.result.n_peers | tonumber')"
-[[ "$recovered_peers" -ge 3 ]]
+scripts/check-validator-health.sh "http://127.0.0.1:${offline_rpc}" "$chain_id" 3
 offline_node_balance="$($binary query bank balances "$alice_address" --node "tcp://127.0.0.1:${offline_rpc}" --home "${network_root}/node${offline_index}" --output json 2>/dev/null | jq -er --arg denom "$base_denom" '.balances[] | select(.denom == $denom) | .amount')"
 [[ "$offline_node_balance" -eq "$backlog_balance" ]]
 

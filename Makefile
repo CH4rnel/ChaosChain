@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: build release test test-cover check-network-profile test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
+.PHONY: build release test test-cover check-network-profile test-validator-health test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
 
 GOCMD=go
 GOTEST=$(GOCMD) test
@@ -33,6 +33,9 @@ test-cover:
 
 check-network-profile:
 	bash scripts/check-network-profile.sh
+
+test-validator-health:
+	bash scripts/test-validator-health.sh
 
 test-cli-smoke: check-network-profile
 	bash scripts/test-cli-smoke.sh
