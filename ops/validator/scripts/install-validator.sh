@@ -36,6 +36,7 @@ fi
 	exit 1
 }
 (cd "$(dirname "$release_sums")" && sha256sum --check --strict "$(basename "$release_sums")")
+"$(dirname "${BASH_SOURCE[0]}")/verify-release-provenance.sh" "$release_archive"
 (cd "$bootstrap_dir" && sha256sum --check --strict SHA256SUMS)
 
 chain_id="$(jq -er '.chain_id | select(type == "string" and length > 0)' "${bootstrap_dir}/bootstrap.json")"
