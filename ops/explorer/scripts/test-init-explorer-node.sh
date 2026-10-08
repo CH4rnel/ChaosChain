@@ -21,6 +21,9 @@ jq -n --arg sha "$genesis_sha" '{
 cat >"$binary" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "$1" == genesis && "$2" == validate ]]; then
+	exit 0
+fi
 [[ "$1" == init ]]
 shift
 moniker="$1"
