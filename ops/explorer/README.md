@@ -2,14 +2,16 @@
 
 This deployment builds Ping Dashboard from the exact commit in `.env` and serves it beside a read-only proxy to a dedicated non-validator node. It does not add Ping, Node, or nginx dependencies to the ChaosChain Go module.
 
-Prepare a stopped full-node home with complete history and REST enabled:
+Create a fresh non-validator home from a checksum-verified public bootstrap bundle. The bundle carries the chain ID, minimum gas price, genesis, and public peers. The node initializer checks those values, enables transaction indexing and complete history, and binds P2P, RPC, and REST to loopback:
 
 ```sh
-ops/explorer/scripts/enable-explorer-api.sh /var/lib/chaoschain-explorer 1317
+ops/explorer/scripts/init-explorer-node.sh /srv/chaoschain/public-bootstrap /var/lib/chaoschain-explorer explorer-node 26656 26657 1317
 chaoschaind start --home /var/lib/chaoschain-explorer
 ```
 
 Use the regular `start` command. `start-native` intentionally rejects REST, gRPC, and gRPC-Web because its in-process host currently exposes CometBFT RPC only.
+
+For an existing stopped full-node home, `scripts/enable-explorer-api.sh` applies the archive and REST settings with timestamped config backups. It does not replace the node's genesis or peers.
 
 Copy `.env.example` to `.env`, replace the public URL, and review the pinned Ping commit before deployment. Then build and start the service:
 
@@ -27,6 +29,7 @@ Run the local contract checks with:
 
 ```sh
 ops/explorer/scripts/test-enable-explorer-api.sh
+ops/explorer/scripts/test-init-explorer-node.sh
 ops/explorer/scripts/test-ping-build-inputs.sh
 CHAOSCHAIN_EXPLORER_IMAGE=chaoschain-ping:test ops/explorer/scripts/test-proxy-policy.sh
 ```

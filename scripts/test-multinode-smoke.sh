@@ -142,25 +142,17 @@ port_stride="$(jq -er '.multinode.port_stride' "$profile")"
 observer_offset=$((validator_count * port_stride))
 observer_rpc=$(( $(jq -er '.multinode.ports.rpc' "$profile") + observer_offset ))
 observer_p2p=$(( $(jq -er '.multinode.ports.p2p' "$profile") + observer_offset ))
-observer_grpc=$(( $(jq -er '.multinode.ports.grpc' "$profile") + observer_offset ))
 observer_api=$(( $(jq -er '.multinode.ports.api' "$profile") + observer_offset ))
-observer_pprof=$(( $(jq -er '.multinode.ports.pprof' "$profile") + observer_offset ))
-observer_chain_id="$(jq -er '.chain_id' "${bootstrap_bundle}/bootstrap.json")"
-observer_peers="$(jq -er '.persistent_peers' "${bootstrap_bundle}/bootstrap.json")"
-"$binary" init chaos-observer --chain-id "$observer_chain_id" --home "$observer_home" >/dev/null 2>&1
-cp "${bootstrap_bundle}/genesis.json" "${observer_home}/config/genesis.json"
-"$binary" genesis validate "${observer_home}/config/genesis.json" --home "$observer_home" >/dev/null 2>&1
-sed -i -E "/^\[rpc\]/,/^\[p2p\]/{s|^laddr = .*|laddr = \"tcp://127.0.0.1:${observer_rpc}\"|; s|^pprof_laddr = .*|pprof_laddr = \"localhost:${observer_pprof}\"|}" "${observer_home}/config/config.toml"
-sed -i -E "/^\[p2p\]/,/^\[mempool\]/{s|^laddr = .*|laddr = \"tcp://127.0.0.1:${observer_p2p}\"|; s|^persistent_peers = .*|persistent_peers = \"${observer_peers}\"|}" "${observer_home}/config/config.toml"
-sed -i -E "/^\[api\]/,/^\[grpc\]/{s|^address = .*|address = \"tcp://localhost:${observer_api}\"|}" "${observer_home}/config/app.toml"
-sed -i -E "/^\[grpc\]/,/^\[grpc-web\]/{s|^address = .*|address = \"localhost:${observer_grpc}\"|}" "${observer_home}/config/app.toml"
-sed -i -E "s|^minimum-gas-prices = .*|minimum-gas-prices = \"$(jq -er '.minimum_gas_price' "$profile")${base_denom}\"|" "${observer_home}/config/app.toml"
+CHAOSCHAIN_BINARY="$binary" ops/explorer/scripts/init-explorer-node.sh \
+	"$bootstrap_bundle" "$observer_home" chaos-observer "$observer_p2p" "$observer_rpc" "$observer_api" >/dev/null
 start_node "$observer_index"
 if ! wait_for_height "$observer_rpc" 2; then
 	tail -n 80 "${smoke_dir}/node${observer_index}.log" >&2
 	exit 1
 fi
 [[ "$(block_hash "$observer_rpc" 2)" == "$reference_hash" ]]
+observer_node_info="$(curl -fsS "http://127.0.0.1:${observer_api}/cosmos/base/tendermint/v1beta1/node_info")"
+[[ "$(jq -er '.default_node_info.network' <<<"$observer_node_info")" == "$chain_id" ]]
 
 node1_rpc="$(jq -er '.nodes[0].rpc_port' "${network_root}/network.json")"
 node2_rpc="$(jq -er '.nodes[1].rpc_port' "${network_root}/network.json")"

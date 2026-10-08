@@ -13,6 +13,7 @@ printf '%s\n' 'private signing key' >"${network_root}/node1/config/priv_validato
 genesis_sha="$(sha256sum "${network_root}/node1/config/genesis.json" | cut -d ' ' -f 1)"
 jq -n --arg sha "$genesis_sha" '{
   chain_id: "chaos-devnet-1",
+  minimum_gas_price: "0.025uchaos",
   genesis_sha256: $sha,
   nodes: [
     {node_id: ("a" * 40), p2p_port: 27656},
@@ -28,9 +29,10 @@ jq -n --arg sha "$genesis_sha" '{
 [[ "$(find "$bundle" -maxdepth 1 -type f -printf '%f\n' | sort)" == "$(printf '%s\n' SHA256SUMS bootstrap.json genesis.json | sort)" ]]
 jq -e --arg sha "$genesis_sha" '
   .chain_id == "chaos-devnet-1" and
+  .minimum_gas_price == "0.025uchaos" and
   .genesis_sha256 == $sha and
   .persistent_peers == (("a" * 40) + "@seed.example.org:27656," + ("b" * 40) + "@seed.example.org:27666") and
-  (keys | sort) == ["chain_id", "genesis_sha256", "persistent_peers"]
+  (keys | sort) == ["chain_id", "genesis_sha256", "minimum_gas_price", "persistent_peers"]
 ' "${bundle}/bootstrap.json" >/dev/null
 if rg -q 'private signing key|/tmp/chaoschain-bootstrap-test' "$bundle"; then
 	echo "bootstrap bundle leaked private data or builder paths" >&2

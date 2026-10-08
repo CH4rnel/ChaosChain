@@ -44,6 +44,7 @@ if ! (cd "$bundle" && sha256sum --check --status SHA256SUMS); then
 fi
 
 chain_id="$(jq -er '.chain_id | select(type == "string" and length > 0 and test("^[A-Za-z0-9._-]+$"))' "${bundle}/bootstrap.json")"
+minimum_gas_price="$(jq -er '.minimum_gas_price | select(type == "string" and test("^[0-9]+([.][0-9]+)?[A-Za-z][A-Za-z0-9/:._-]*$"))' "${bundle}/bootstrap.json")"
 expected_genesis_sha="$(jq -er '.genesis_sha256 | select(type == "string" and test("^[0-9a-f]{64}$"))' "${bundle}/bootstrap.json")"
 actual_genesis_sha="$(sha256sum "${bundle}/genesis.json" | cut -d ' ' -f 1)"
 genesis_chain_id="$(jq -er '.chain_id | select(type == "string" and length > 0)' "${bundle}/genesis.json")"
@@ -139,6 +140,7 @@ app_config="${staging}/config/app.toml"
 comet_config="${staging}/config/config.toml"
 set_toml "$app_config" "" pruning '"nothing"'
 set_toml "$app_config" "" min-retain-blocks 0
+set_toml "$app_config" "" minimum-gas-prices "\"${minimum_gas_price}\""
 set_toml "$app_config" api enable true
 set_toml "$app_config" api swagger false
 set_toml "$app_config" api address "\"tcp://127.0.0.1:${api_port}\""

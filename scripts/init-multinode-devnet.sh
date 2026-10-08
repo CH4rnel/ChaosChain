@@ -109,7 +109,7 @@ for index in $(seq 1 "$validator_count"); do
 		'. + [{index: $index, home: $home, node_id: $id, p2p_port: $p2p, rpc_port: $rpc, grpc_port: $grpc, metrics_port: $metrics}]' <<<"$nodes")"
 done
 
-jq -n --arg chain_id "$chain_id" --arg genesis_sha256 "$(sha256sum "$genesis" | cut -d ' ' -f 1)" --argjson nodes "$nodes" \
-	'{chain_id: $chain_id, genesis_sha256: $genesis_sha256, nodes: $nodes}' >"${network_root}/network.json"
+jq -n --arg chain_id "$chain_id" --arg minimum_gas_price "${minimum_gas_price}${base_denom}" --arg genesis_sha256 "$(sha256sum "$genesis" | cut -d ' ' -f 1)" --argjson nodes "$nodes" \
+	'{chain_id: $chain_id, minimum_gas_price: $minimum_gas_price, genesis_sha256: $genesis_sha256, nodes: $nodes}' >"${network_root}/network.json"
 
 echo "initialized ${validator_count} validators at ${network_root}"

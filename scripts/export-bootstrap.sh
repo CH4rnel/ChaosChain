@@ -26,6 +26,7 @@ if [[ ! -f "$manifest" || ! -f "$genesis" ]]; then
 fi
 
 chain_id="$(jq -er '.chain_id | select(type == "string" and length > 0)' "$manifest")"
+minimum_gas_price="$(jq -er '.minimum_gas_price | select(type == "string" and test("^[0-9]+([.][0-9]+)?[A-Za-z][A-Za-z0-9/:._-]*$"))' "$manifest")"
 expected_sha="$(jq -er '.genesis_sha256 | select(type == "string" and test("^[0-9a-f]{64}$"))' "$manifest")"
 actual_sha="$(sha256sum "$genesis" | cut -d ' ' -f 1)"
 genesis_chain_id="$(jq -er '.chain_id | select(type == "string" and length > 0)' "$genesis")"
@@ -65,8 +66,9 @@ cleanup() {
 trap cleanup EXIT
 
 cp "$genesis" "${staging}/genesis.json"
-jq -n --arg chain "$chain_id" --arg sha "$actual_sha" --arg host "$advertised_host" --slurpfile network "$manifest" '{
+jq -n --arg chain "$chain_id" --arg minimum_gas_price "$minimum_gas_price" --arg sha "$actual_sha" --arg host "$advertised_host" --slurpfile network "$manifest" '{
   chain_id: $chain,
+  minimum_gas_price: $minimum_gas_price,
   genesis_sha256: $sha,
   persistent_peers: ([$network[0].nodes[] | .node_id + "@" + $host + ":" + (.p2p_port | tostring)] | join(","))
 }' >"${staging}/bootstrap.json"

@@ -79,6 +79,9 @@ jobs:
       - name: Run four-validator recovery journey
         run: make test-multinode-smoke
 
+      - name: Verify explorer bootstrap rejection paths
+        run: ops/explorer/scripts/test-init-explorer-node.sh
+
   monitoring:
     runs-on: ubuntu-latest
     steps:
@@ -94,6 +97,8 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
       - name: Verify explorer node configuration
         run: ops/explorer/scripts/test-enable-explorer-api.sh
+      - name: Verify explorer full-node bootstrap
+        run: ops/explorer/scripts/test-init-explorer-node.sh
       - name: Verify Ping chain configuration
         run: ops/explorer/scripts/test-ping-build-inputs.sh
       - name: Build pinned Ping dashboard

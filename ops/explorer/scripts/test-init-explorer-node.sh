@@ -13,6 +13,7 @@ printf '%s\n' '{"chain_id":"chaos-devnet-1"}' >"${bundle}/genesis.json"
 genesis_sha="$(sha256sum "${bundle}/genesis.json" | cut -d ' ' -f 1)"
 jq -n --arg sha "$genesis_sha" '{
   chain_id: "chaos-devnet-1",
+  minimum_gas_price: "0.025uchaos",
   genesis_sha256: $sha,
   persistent_peers: (("a" * 40) + "@seed.example.org:27656," + ("b" * 40) + "@198.51.100.10:27656")
 }' >"${bundle}/bootstrap.json"
@@ -40,6 +41,7 @@ printf 'chain_id=%s\nmoniker=%s\n' "$chain_id" "$moniker" >"${home}/config/init.
 cat >"${home}/config/app.toml" <<'CONFIG'
 pruning = "default"
 min-retain-blocks = 10
+minimum-gas-prices = ""
 [api]
 enable = false
 swagger = true
@@ -69,13 +71,14 @@ CHAOSCHAIN_BINARY="$binary" "$repo_root/ops/explorer/scripts/init-explorer-node.
 
 [[ "$(jq -er '.chain_id' "${home}/config/genesis.json")" == chaos-devnet-1 ]]
 [[ "$(<"${home}/config/init.args")" == $'chain_id=chaos-devnet-1\nmoniker=explorer-node' ]]
-rg -q '^persistent_peers = "[a-f0-9]{40}@seed\.example\.org:27656,[a-f0-9]{40}@198\.51\.100\.10:27656"$' "${home}/config/config.toml"
-rg -q '^laddr = "tcp://127\.0\.0\.1:27656"$' "${home}/config/config.toml"
-rg -q '^laddr = "tcp://127\.0\.0\.1:27657"$' "${home}/config/config.toml"
-rg -q '^enable = true$' "${home}/config/app.toml"
-rg -q '^address = "tcp://127\.0\.0\.1:1417"$' "${home}/config/app.toml"
-rg -q '^pruning = "nothing"$' "${home}/config/app.toml"
-rg -q '^indexer = "kv"$' "${home}/config/config.toml"
+grep -Eq '^persistent_peers = "[a-f0-9]{40}@seed\.example\.org:27656,[a-f0-9]{40}@198\.51\.100\.10:27656"$' "${home}/config/config.toml"
+grep -Eq '^laddr = "tcp://127\.0\.0\.1:27656"$' "${home}/config/config.toml"
+grep -Eq '^laddr = "tcp://127\.0\.0\.1:27657"$' "${home}/config/config.toml"
+grep -Eq '^enable = true$' "${home}/config/app.toml"
+grep -Eq '^address = "tcp://127\.0\.0\.1:1417"$' "${home}/config/app.toml"
+grep -Eq '^pruning = "nothing"$' "${home}/config/app.toml"
+grep -Eq '^minimum-gas-prices = "0.025uchaos"$' "${home}/config/app.toml"
+grep -Eq '^indexer = "kv"$' "${home}/config/config.toml"
 [[ "$(<"${home}/config/priv_validator_key.json")" == 'local generated signer' ]]
 [[ ! -e "${home}/config/priv_validator_state.json" ]]
 
@@ -105,5 +108,16 @@ if CHAOSCHAIN_BINARY="$binary" "$repo_root/ops/explorer/scripts/init-explorer-no
 	exit 1
 fi
 [[ ! -e "${test_root}/wrong-node" ]]
+
+bad_peers="${test_root}/bad-peers"
+cp -a "$bundle" "$bad_peers"
+jq '.persistent_peers = "not-a-peer"' "${bad_peers}/bootstrap.json" >"${bad_peers}/bootstrap.tmp"
+mv "${bad_peers}/bootstrap.tmp" "${bad_peers}/bootstrap.json"
+(cd "$bad_peers" && sha256sum bootstrap.json genesis.json >SHA256SUMS)
+if CHAOSCHAIN_BINARY="$binary" "$repo_root/ops/explorer/scripts/init-explorer-node.sh" "$bad_peers" "${test_root}/bad-peer-node" bad-peer-node >/dev/null 2>&1; then
+	echo "Explorer initializer accepted a malformed peer list" >&2
+	exit 1
+fi
+[[ ! -e "${test_root}/bad-peer-node" ]]
 
 echo "Explorer node bootstrap tests passed"
