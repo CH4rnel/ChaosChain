@@ -1,0 +1,45 @@
+{
+  "chain_name": "chaoschain-testnet",
+  "chain_id": "${CHAIN_ID}",
+  "network_type": "testnet",
+  "api": [
+    {
+      "address": "${PUBLIC_URL}/api",
+      "provider": "ChaosChain"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "${PUBLIC_URL}/rpc",
+      "provider": "ChaosChain"
+    }
+  ],
+  "coingecko": "",
+  "snapshot_provider": "",
+  "sdk_version": "0.54.0",
+  "coin_type": "118",
+  "min_tx_fee": "5000",
+  "addr_prefix": "chaos",
+  "logo": "",
+  "assets": [
+    {
+      "base": "uchaos",
+      "symbol": "CHAOS",
+      "exponent": "6",
+      "coingecko_id": "",
+      "logo": ""
+    }
+  ],
+  "features": [
+    "dashboard",
+    "governance",
+    "staking",
+    "blocks",
+    "tx",
+    "uptime",
+    "supply",
+    "parameters",
+    "consensus",
+    "account"
+  ]
+}
