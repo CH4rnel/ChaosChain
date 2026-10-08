@@ -87,6 +87,26 @@ jobs:
       - name: Validate Prometheus monitoring rules
         run: make check-monitoring
 
+  explorer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - name: Verify explorer node configuration
+        run: ops/explorer/scripts/test-enable-explorer-api.sh
+      - name: Verify Ping chain configuration
+        run: ops/explorer/scripts/test-ping-build-inputs.sh
+      - name: Build pinned Ping dashboard
+        run: |
+          docker build \
+            --build-arg PING_REF=39a010de9bd0127f60e43aa7e97d12dc8837aea1 \
+            --build-arg PUBLIC_URL=https://testnet-explorer.example.org \
+            --build-arg CHAIN_ID=chaos-devnet-1 \
+            --tag chaoschain-ping:test \
+            ops/explorer
+      - name: Verify read-only explorer proxy
+        run: ops/explorer/scripts/test-proxy-policy.sh
+
   sast:
     runs-on: ubuntu-latest
     steps:

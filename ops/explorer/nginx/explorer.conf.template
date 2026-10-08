@@ -1,0 +1,65 @@
+limit_req_zone $binary_remote_addr zone=rest_rate:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=rpc_rate:10m rate=5r/s;
+limit_conn_zone $binary_remote_addr zone=connections_per_ip:10m;
+
+map $http_origin $allowed_origin {
+    default "";
+    "${PUBLIC_ORIGIN}" $http_origin;
+}
+
+upstream chaoschain_rest {
+    server ${NODE_HOST}:${NODE_API_PORT};
+    keepalive 16;
+}
+
+upstream chaoschain_rpc {
+    server ${NODE_HOST}:${NODE_RPC_PORT};
+    keepalive 16;
+}
+
+server {
+    listen ${LISTEN_HOST}:${LISTEN_PORT};
+    server_name _;
+    server_tokens off;
+    limit_conn connections_per_ip 20;
+    limit_req_status 429;
+    limit_conn_status 429;
+
+    root /usr/share/nginx/html;
+
+    location / {
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options DENY always;
+        add_header Referrer-Policy no-referrer always;
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        limit_except GET { deny all; }
+        limit_req zone=rest_rate burst=30 nodelay;
+        add_header Access-Control-Allow-Origin $allowed_origin always;
+        add_header Vary Origin always;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 15s;
+        proxy_pass http://chaoschain_rest/;
+    }
+
+    location ~ ^/rpc/(status|health|block|block_by_hash|block_results|blockchain|commit|consensus_params|validators|tx|tx_search|block_search)$ {
+        limit_except GET { deny all; }
+        limit_req zone=rpc_rate burst=10 nodelay;
+        add_header Access-Control-Allow-Origin $allowed_origin always;
+        add_header Vary Origin always;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 15s;
+        rewrite ^/rpc/(.*)$ /$1 break;
+        proxy_pass http://chaoschain_rpc;
+    }
+
+    location /rpc/ {
+        return 403;
+    }
+}

@@ -25,3 +25,4 @@ RUN test -n "${PUBLIC_URL}" \
 
 FROM nginx:stable-alpine
 COPY --from=build /src/dist /usr/share/nginx/html
+COPY nginx/explorer.conf.template /etc/nginx/templates/explorer.conf.template
