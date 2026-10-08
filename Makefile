@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: build release test test-cover check-network-profile check-monitoring test-validator-health test-validator-backup test-validator-restore test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
+.PHONY: build release test test-cover check-network-profile check-monitoring test-export-bootstrap test-validator-health test-validator-backup test-validator-restore test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
 
 GOCMD=go
 GOTEST=$(GOCMD) test
@@ -36,6 +36,9 @@ check-network-profile:
 
 check-monitoring:
 	docker run --rm --network none --read-only -v "$(CURDIR):/project:ro" -w /project --entrypoint /bin/promtool prom/prometheus@sha256:29c1e0b48ad816750245dea3d65ac3ce57dda30547e67b1e9a5176e2953cc4dc check config monitoring/prometheus-devnet.yml
+
+test-export-bootstrap:
+	bash scripts/test-export-bootstrap.sh
 
 test-validator-health:
 	bash scripts/test-validator-health.sh

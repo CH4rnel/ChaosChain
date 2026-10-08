@@ -45,6 +45,8 @@ jobs:
         run: make test-validator-backup
       - name: Test validator home restore
         run: make test-validator-restore
+      - name: Test public bootstrap export
+        run: make test-export-bootstrap
       - name: Upload coverage artifact
         uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:

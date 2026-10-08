@@ -25,7 +25,7 @@ jq -e '
   (.multinode.ports | has("metrics")) and
   (all(.multinode.ports[]; type == "number" and . >= 1024 and . <= 65000 and floor == .)) and
   ([.multinode.ports[]] | unique | length) == (.multinode.ports | length) and
-  (([.multinode.ports[]] | max) + ((.multinode.validator_count - 1) * .multinode.port_stride) <= 65535) and
+  (([.multinode.ports[]] | max) + (.multinode.validator_count * .multinode.port_stride) <= 65535) and
   (.accounts | type == "array" and length >= 2) and
   (all(.accounts[]; (.name | type == "string" and length > 0) and (.balance | type == "string" and test("^[1-9][0-9]*$")))) and
   ([.accounts[].name] | unique | length) == (.accounts | length) and

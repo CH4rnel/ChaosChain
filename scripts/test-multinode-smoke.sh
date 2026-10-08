@@ -81,7 +81,15 @@ block_hash() {
 	curl -fsS "http://127.0.0.1:${port}/block?height=${height}" | jq -er '.result.block_id.hash'
 }
 
-go build -o "$binary" ./cmd/chaoschaind
+scripts/build-release.sh "${smoke_dir}/release" >/dev/null
+(
+	cd "${smoke_dir}/release"
+	sha256sum --check SHA256SUMS >/dev/null
+)
+release_archive="$(find "${smoke_dir}/release" -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+tar -xzf "$release_archive" -C "$smoke_dir"
+release_binary="$(find "$smoke_dir" -mindepth 2 -maxdepth 2 -type f -path '*/chaoschaind' -print -quit)"
+cp "$release_binary" "$binary"
 original_binary_sha="$(sha256sum "$binary" | cut -d ' ' -f 1)"
 CHAOSCHAIN_BINARY="$binary" scripts/init-multinode-devnet.sh "$network_root" >/dev/null
 
@@ -122,6 +130,38 @@ for index in $(seq 2 "$validator_count"); do
 	[[ "$(block_hash "$rpc_port" 2)" == "$reference_hash" ]]
 done
 
+bootstrap_bundle="${smoke_dir}/public-bootstrap"
+scripts/export-bootstrap.sh "$network_root" "$bootstrap_bundle" 127.0.0.1
+(
+	cd "$bootstrap_bundle"
+	sha256sum --check SHA256SUMS >/dev/null
+)
+observer_index=$((validator_count + 1))
+observer_home="${network_root}/node${observer_index}"
+port_stride="$(jq -er '.multinode.port_stride' "$profile")"
+observer_offset=$((validator_count * port_stride))
+observer_rpc=$(( $(jq -er '.multinode.ports.rpc' "$profile") + observer_offset ))
+observer_p2p=$(( $(jq -er '.multinode.ports.p2p' "$profile") + observer_offset ))
+observer_grpc=$(( $(jq -er '.multinode.ports.grpc' "$profile") + observer_offset ))
+observer_api=$(( $(jq -er '.multinode.ports.api' "$profile") + observer_offset ))
+observer_pprof=$(( $(jq -er '.multinode.ports.pprof' "$profile") + observer_offset ))
+observer_chain_id="$(jq -er '.chain_id' "${bootstrap_bundle}/bootstrap.json")"
+observer_peers="$(jq -er '.persistent_peers' "${bootstrap_bundle}/bootstrap.json")"
+"$binary" init chaos-observer --chain-id "$observer_chain_id" --home "$observer_home" >/dev/null 2>&1
+cp "${bootstrap_bundle}/genesis.json" "${observer_home}/config/genesis.json"
+"$binary" genesis validate "${observer_home}/config/genesis.json" --home "$observer_home" >/dev/null 2>&1
+sed -i -E "/^\[rpc\]/,/^\[p2p\]/{s|^laddr = .*|laddr = \"tcp://127.0.0.1:${observer_rpc}\"|; s|^pprof_laddr = .*|pprof_laddr = \"localhost:${observer_pprof}\"|}" "${observer_home}/config/config.toml"
+sed -i -E "/^\[p2p\]/,/^\[mempool\]/{s|^laddr = .*|laddr = \"tcp://127.0.0.1:${observer_p2p}\"|; s|^persistent_peers = .*|persistent_peers = \"${observer_peers}\"|}" "${observer_home}/config/config.toml"
+sed -i -E "/^\[api\]/,/^\[grpc\]/{s|^address = .*|address = \"tcp://localhost:${observer_api}\"|}" "${observer_home}/config/app.toml"
+sed -i -E "/^\[grpc\]/,/^\[grpc-web\]/{s|^address = .*|address = \"localhost:${observer_grpc}\"|}" "${observer_home}/config/app.toml"
+sed -i -E "s|^minimum-gas-prices = .*|minimum-gas-prices = \"$(jq -er '.minimum_gas_price' "$profile")${base_denom}\"|" "${observer_home}/config/app.toml"
+start_node "$observer_index"
+if ! wait_for_height "$observer_rpc" 2; then
+	tail -n 80 "${smoke_dir}/node${observer_index}.log" >&2
+	exit 1
+fi
+[[ "$(block_hash "$observer_rpc" 2)" == "$reference_hash" ]]
+
 node1_rpc="$(jq -er '.nodes[0].rpc_port' "${network_root}/network.json")"
 node2_rpc="$(jq -er '.nodes[1].rpc_port' "${network_root}/network.json")"
 node3_rpc="$(jq -er '.nodes[2].rpc_port' "${network_root}/network.json")"
@@ -132,6 +172,9 @@ send_response="$($binary tx bank send "$validator_name" "$alice_address" "${tran
 wait_for_tx "$node2_rpc" "$(jq -er '.txhash' <<<"$send_response")"
 updated_balance="$($binary query bank balances "$alice_address" --node "tcp://127.0.0.1:${node2_rpc}" --home "${network_root}/node2" --output json 2>/dev/null | jq -er --arg denom "$base_denom" '.balances[] | select(.denom == $denom) | .amount')"
 [[ "$updated_balance" -eq $((initial_balance + transfer)) ]]
+wait_for_tx "$observer_rpc" "$(jq -er '.txhash' <<<"$send_response")"
+observer_balance="$($binary query bank balances "$alice_address" --node "tcp://127.0.0.1:${observer_rpc}" --home "$observer_home" --output json 2>/dev/null | jq -er --arg denom "$base_denom" '.balances[] | select(.denom == $denom) | .amount')"
+[[ "$observer_balance" == "$updated_balance" ]]
 
 delegate_response="$($binary tx staking delegate "$validator_operator" "${delegation}${base_denom}" --from "$alice_name" --chain-id "$chain_id" --keyring-backend test --gas "$gas" --fees "${fee}${base_denom}" --yes --node "tcp://127.0.0.1:${node1_rpc}" --home "${network_root}/node1" --output json 2>/dev/null)"
 wait_for_tx "$node2_rpc" "$(jq -er '.txhash' <<<"$delegate_response")"
@@ -167,6 +210,7 @@ offline_node_balance="$($binary query bank balances "$alice_address" --node "tcp
 [[ "$offline_node_balance" -eq "$backlog_balance" ]]
 
 cold_height="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.sync_info.latest_block_height | tonumber')"
+stop_node "$observer_index"
 validator_address="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.validator_info.address')"
 validator_key_sha="$(sha256sum "${network_root}/node1/config/priv_validator_key.json" | cut -d ' ' -f 1)"
 stop_network "$validator_count"
