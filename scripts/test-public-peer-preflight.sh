@@ -7,7 +7,7 @@ trap 'rm -rf "$test_root"' EXIT
 
 mkdir -p "${test_root}/bootstrap" "${test_root}/bin"
 printf '%s\n' '{"chain_id":"chaos-devnet-1"}' >"${test_root}/bootstrap/genesis.json"
-jq -n '{chain_id:"chaos-devnet-1",minimum_gas_price:"0.025uchaos",genesis_sha256:"unused",persistent_peers:("a" * 40 + "@alpha.example.test:27656," + "b" * 40 + "@beta.example.test:27666," + "c" * 40 + "@sleeping.example.test:27676")}' >"${test_root}/bootstrap/bootstrap.json"
+jq -n --arg sha "$(sha256sum "${test_root}/bootstrap/genesis.json" | cut -d ' ' -f 1)" '{chain_id:"chaos-devnet-1",minimum_gas_price:"0.025uchaos",genesis_sha256:$sha,persistent_peers:("a" * 40 + "@alpha.example.test:27656," + "b" * 40 + "@beta.example.test:27666," + "c" * 40 + "@sleeping.example.test:27676")}' >"${test_root}/bootstrap/bootstrap.json"
 (cd "${test_root}/bootstrap" && sha256sum bootstrap.json genesis.json >SHA256SUMS)
 
 cat >"${test_root}/bin/getent" <<'GETENT'
@@ -23,7 +23,7 @@ cat >"${test_root}/bin/timeout" <<'TIMEOUT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$1" == 3 && "$2" == bash && "$3" == -c ]]
-[[ "$5" != "${UNREACHABLE_PEER:-}" ]]
+[[ "$6" != "${UNREACHABLE_PEER:-}" ]]
 TIMEOUT
 chmod +x "${test_root}/bin/getent" "${test_root}/bin/timeout"
 export PATH="${test_root}/bin:${PATH}"
