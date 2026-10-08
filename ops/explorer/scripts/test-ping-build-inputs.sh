@@ -32,9 +32,9 @@ jq -e \
   (.features | index("ibc") == null)
 ' "$rendered" >/dev/null
 
-rg -q '^ARG PING_REF$' "${explorer_root}/Dockerfile"
-rg -q 'git fetch --depth 1 origin "\$\{PING_REF\}"' "${explorer_root}/Dockerfile"
-if rg -q 'go (get|install)|go\.mod' "$explorer_root"; then
+grep -Eq '^ARG PING_REF$' "${explorer_root}/Dockerfile"
+grep -Eq 'git fetch --depth 1 origin "\$\{PING_REF\}"' "${explorer_root}/Dockerfile"
+if grep -REq 'go (get|install)|go\.mod' "$explorer_root"; then
 	echo "Explorer build inputs entered the Go dependency graph" >&2
 	exit 1
 fi

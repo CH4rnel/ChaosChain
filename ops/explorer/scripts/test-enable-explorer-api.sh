@@ -35,14 +35,14 @@ home="${test_root}/node"
 new_home "$home"
 "${script_dir}/enable-explorer-api.sh" "$home" 1417 >/dev/null
 
-rg -q '^pruning = "nothing"$' "${home}/config/app.toml"
-rg -q '^min-retain-blocks = 0$' "${home}/config/app.toml"
-rg -q '^enable = true$' "${home}/config/app.toml"
-rg -q '^swagger = false$' "${home}/config/app.toml"
-rg -q '^address = "tcp://127.0.0.1:1417"$' "${home}/config/app.toml"
-rg -q '^max-open-connections = 500$' "${home}/config/app.toml"
-rg -q '^enabled-unsafe-cors = false$' "${home}/config/app.toml"
-rg -q '^indexer = "kv"$' "${home}/config/config.toml"
+grep -Eq '^pruning = "nothing"$' "${home}/config/app.toml"
+grep -Eq '^min-retain-blocks = 0$' "${home}/config/app.toml"
+grep -Eq '^enable = true$' "${home}/config/app.toml"
+grep -Eq '^swagger = false$' "${home}/config/app.toml"
+grep -Eq '^address = "tcp://127.0.0.1:1417"$' "${home}/config/app.toml"
+grep -Eq '^max-open-connections = 500$' "${home}/config/app.toml"
+grep -Eq '^enabled-unsafe-cors = false$' "${home}/config/app.toml"
+grep -Eq '^indexer = "kv"$' "${home}/config/config.toml"
 [[ "$(find "${home}/config" -name 'app.toml.bak.*' | wc -l)" -eq 1 ]]
 [[ "$(find "${home}/config" -name 'config.toml.bak.*' | wc -l)" -eq 1 ]]
 
