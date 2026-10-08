@@ -52,7 +52,7 @@ for peer in "${peers[@]}"; do
 		echo "unreachable ${peer_host}:${peer_port} (DNS lookup failed)"
 		continue
 	fi
-	if timeout 3 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "$peer_host" "$peer_port" 2>/dev/null; then
+	if timeout 3 bash -c "exec 3<>/dev/tcp/${peer_host}/${peer_port}" 2>/dev/null; then
 		((reachable += 1))
 		printf 'reachable %s:%s\n' "$peer_host" "$peer_port"
 	else

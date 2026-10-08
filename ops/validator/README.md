@@ -14,10 +14,19 @@ sudo ops/validator/scripts/install-validator.sh \
 
 The installer creates the chaoschain system account, initializes `/var/lib/chaoschain` on that host, validates genesis, and enables `chaoschaind.service`. The service runs without Linux capabilities, with a read-only system filesystem and access only to its node home. The private validator key is mode 0600. CometBFT RPC remains on loopback and Prometheus metrics remain disabled by the daemon defaults; expose only the configured P2P port in the host firewall.
 
+Before installing, check peer reachability from the VPS itself using the same verified bootstrap bundle. The final argument is the minimum number of advertised peers that must accept a TCP connection:
+
+```sh
+scripts/check-public-peers.sh /opt/chaoschain/public-bootstrap 2
+```
+
+The check verifies bundle checksums and the manifest/genesis match, resolves each advertised DNS name or IPv4 address, and attempts its P2P port with a short timeout. It tests outbound reachability from this host; it does not prove that inbound firewall rules work, that a remote node is synchronized, or that consensus is healthy. Run the reachability check from each host and use `scripts/check-validator-health.sh` after the node starts.
+
 Before using this on a real validator, review the release commit and genesis with the network operator, confirm the advertised persistent peers are reachable, and verify the VPS firewall allows inbound P2P while keeping RPC, REST, SSH, and metrics restricted. This installer does not provision a VPS, create a funded account, submit a validator transaction, or prove independent multi-host consensus. Confirm service health and catch-up separately with `scripts/check-validator-health.sh`.
 
 The isolated fixture test runs without root, creates no system account, and uses stubbed systemd commands:
 
 ```sh
 make test-validator-install
+make test-public-peer-preflight
 ```

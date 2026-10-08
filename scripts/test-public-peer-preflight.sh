@@ -23,7 +23,8 @@ cat >"${test_root}/bin/timeout" <<'TIMEOUT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$1" == 3 && "$2" == bash && "$3" == -c ]]
-[[ "$6" != "${UNREACHABLE_PEER:-}" ]]
+[[ "$4" == *"/dev/tcp/"* ]]
+[[ "$4" != *"/dev/tcp/${UNREACHABLE_PEER:-}/"* ]]
 TIMEOUT
 chmod +x "${test_root}/bin/getent" "${test_root}/bin/timeout"
 export PATH="${test_root}/bin:${PATH}"

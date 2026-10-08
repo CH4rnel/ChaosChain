@@ -47,6 +47,8 @@ jobs:
         run: make test-validator-restore
       - name: Test isolated VPS validator installation
         run: make test-validator-install
+      - name: Test public peer reachability preflight
+        run: make test-public-peer-preflight
       - name: Test public bootstrap export
         run: make test-export-bootstrap
       - name: Upload coverage artifact
