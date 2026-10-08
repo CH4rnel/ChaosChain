@@ -2,7 +2,7 @@
 
 This installer prepares one fresh Linux AMD64 host from a release archive and a public bootstrap bundle. It verifies both SHA256SUMS files, checks the bootstrap manifest against genesis, initializes a new local validator identity, and installs a hardened systemd service. It refuses to replace an existing validator home. Never copy a validator home or private validator key between hosts.
 
-The host needs Bash, jq, tar, coreutils, systemd, and a ChaosChain release archive. Run the installer as root with the release archive, the matching release SHA256SUMS file, the extracted public bootstrap directory, and a unique moniker:
+The host needs Bash, jq, tar, coreutils, systemd, GitHub CLI with attestation support, and a ChaosChain release archive. The installer verifies the archive checksum and requires GitHub's artifact attestation to identify the ChaosChain repository and its CI workflow as the signer before it extracts or installs anything. Use an archive produced by a push to the official master branch; pull request build artifacts are not signed. Run the installer as root with the release archive, the matching release SHA256SUMS file, the extracted public bootstrap directory, and a unique moniker:
 
 ```sh
 sudo ops/validator/scripts/install-validator.sh \
@@ -28,5 +28,6 @@ The isolated fixture test runs without root, creates no system account, and uses
 
 ```sh
 make test-validator-install
+make test-verify-release-provenance
 make test-public-peer-preflight
 ```

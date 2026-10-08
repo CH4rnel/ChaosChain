@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: build release test test-cover check-network-profile check-monitoring test-export-bootstrap test-validator-health test-validator-backup test-validator-restore test-validator-install test-public-peer-preflight test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
+.PHONY: build release test test-cover check-network-profile check-monitoring test-export-bootstrap test-validator-health test-validator-backup test-validator-restore test-validator-install test-verify-release-provenance test-public-peer-preflight test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
 
 GOCMD=go
 GOTEST=$(GOCMD) test
@@ -53,6 +53,9 @@ test-validator-restore:
 
 test-validator-install:
 	bash ops/validator/scripts/test-install-validator.sh
+
+test-verify-release-provenance:
+	bash ops/validator/scripts/test-verify-release-provenance.sh
 
 test-public-peer-preflight:
 	bash scripts/test-public-peer-preflight.sh
