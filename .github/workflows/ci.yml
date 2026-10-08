@@ -45,6 +45,8 @@ jobs:
         run: make test-validator-backup
       - name: Test validator home restore
         run: make test-validator-restore
+      - name: Test isolated VPS validator installation
+        run: make test-validator-install
       - name: Test public bootstrap export
         run: make test-export-bootstrap
       - name: Upload coverage artifact

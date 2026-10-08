@@ -17,8 +17,7 @@ case "$1" in
       if [[ "$1" == "--home" ]]; then home="$2"; shift 2; else shift; fi
     done
     mkdir -p "${home}/config"
-    printf '%s\n' 'chain-id = "chaos-devnet-1"' >"${home}/config/config.toml"
-    printf '%s\n' 'persistent_peers = ""' >>"${home}/config/config.toml"
+    printf '%s\n' '[p2p]' 'persistent_peers = ""' '[rpc]' 'laddr = "tcp://127.0.0.1:26657"' '[instrumentation]' 'prometheus = false' >"${home}/config/config.toml"
     printf '%s\n' 'minimum-gas-prices = ""' >"${home}/config/app.toml"
     printf '%s\n' '{"chain_id":"chaos-devnet-1"}' >"${home}/config/genesis.json"
     printf '%s\n' 'local-private-validator-key' >"${home}/config/priv_validator_key.json"
@@ -53,11 +52,17 @@ export CHAOSCHAIN_TEST_ROOT="$test_root/target"
 
 [[ -x "${test_root}/target/usr/local/bin/chaoschaind" ]]
 [[ -f "${test_root}/target/var/lib/chaoschain/config/priv_validator_key.json" ]]
-! rg -q 'local-private-validator-key' "${test_root}/target/etc/systemd/system/chaoschaind.service"
+[[ "$(stat -c '%a' "${test_root}/target/var/lib/chaoschain/config/priv_validator_key.json")" == 600 ]]
+if rg -q 'local-private-validator-key' "${test_root}/target/etc/systemd/system/chaoschaind.service"; then
+	echo "validator private key leaked into the systemd unit" >&2
+	exit 1
+fi
 rg -q 'User=chaoschain' "${test_root}/target/etc/systemd/system/chaoschaind.service"
 rg -q 'ProtectSystem=strict' "${test_root}/target/etc/systemd/system/chaoschaind.service"
 rg -q 'persistent_peers = "peerid@seed.example.org:27656"' "${test_root}/target/var/lib/chaoschain/config/config.toml"
 rg -q 'minimum-gas-prices = "0.025uchaos"' "${test_root}/target/var/lib/chaoschain/config/app.toml"
+rg -q 'laddr = "tcp://127.0.0.1:26657"' "${test_root}/target/var/lib/chaoschain/config/config.toml"
+rg -q 'prometheus = false' "${test_root}/target/var/lib/chaoschain/config/config.toml"
 
 if "${repo_root}/ops/validator/scripts/install-validator.sh" \
 	"${test_root}/chaoschain-test-linux-amd64.tar.gz" \

@@ -81,19 +81,19 @@ else
 		useradd --system --user-group --home-dir /var/lib/chaoschain --create-home --shell /usr/sbin/nologin chaoschain
 	fi
 	mkdir -p "$node_home"
-	chown chaoschain:chaoschain "$(dirname "$node_home")"
+	chown chaoschain:chaoschain "$node_home"
 	runuser -u chaoschain -- "$binary_path" init "$moniker" --chain-id "$chain_id" --home "$node_home"
 fi
 install -m 0644 "${bootstrap_dir}/genesis.json" "${node_home}/config/genesis.json"
 "$binary_path" genesis validate "${node_home}/config/genesis.json" --home "$node_home"
 sed -i -E "s|^[[:space:]]*persistent_peers[[:space:]]*=.*|persistent_peers = \"${persistent_peers}\"|" "${node_home}/config/config.toml"
 sed -i -E "s|^[[:space:]]*minimum-gas-prices[[:space:]]*=.*|minimum-gas-prices = \"${minimum_gas_price}\"|" "${node_home}/config/app.toml"
-install -m 0644 "$(dirname "${BASH_SOURCE[0]}")/../chaoschaind.service" "$service_path"
 if [[ -z "$target_root" ]]; then
 	chown -R chaoschain:chaoschain "$node_home"
-else
-	chmod -R go-rwx "${node_home}/config"
 fi
+chmod 0700 "$node_home" "${node_home}/config"
+chmod 0600 "${node_home}/config/priv_validator_key.json"
+install -m 0644 "$(dirname "${BASH_SOURCE[0]}")/../chaoschaind.service" "$service_path"
 systemctl daemon-reload
 systemctl enable --now chaoschaind.service
 
