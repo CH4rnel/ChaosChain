@@ -16,6 +16,8 @@ GOLANGCI_LINT_BIN=$(GOPATH)/bin/golangci-lint
 # Version pinning
 GOLANGCI_LINT_VERSION=latest
 GOSEC_VERSION=v2.22.3
+CYCLONEDX_GOMOD_VERSION=v1.12.0
+SBOM_OUTPUT?=sbom.json
 
 build:
 	mkdir -p ./bin
@@ -83,7 +85,7 @@ vuln:
 	bash scripts/check-vuln.sh
 
 sbom:
-	$(GOCMD) run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest mod -json -output sbom.json
+	GOTOOLCHAIN=go1.26.8 $(GOCMD) run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@$(CYCLONEDX_GOMOD_VERSION) mod -json -output $(SBOM_OUTPUT)
 
 clean: clean-tools
 	rm -rf ./bin coverage.out coverage.html sbom.json

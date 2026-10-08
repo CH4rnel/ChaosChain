@@ -12,7 +12,7 @@ trap 'rm -f "$report"' EXIT
 # Cosmos SDK key import/export; no OpenPGP packet parser or cryptographic
 # operation (such as ReadMessage, packet, elgamal, or s2k) appears in the traces.
 # Revisit by 2026-12-31 or earlier if Cosmos SDK removes its armor dependency.
-go run "golang.org/x/vuln/cmd/govulncheck@${govulncheck_version}" -json ./... >"$report"
+GOTOOLCHAIN=go1.26.8 go run "golang.org/x/vuln/cmd/govulncheck@${govulncheck_version}" -json ./... >"$report"
 
 if ! jq -s -e '
   length > 0
