@@ -21,6 +21,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$bundle" "$output_dir"
+cp "${repo_root}/LICENSE" "${bundle}/LICENSE"
 ldflags="-X github.com/CH4rnel/ChaosChain/internal/buildinfo.Version=${version} -X github.com/CH4rnel/ChaosChain/internal/buildinfo.Commit=${commit} -X github.com/CH4rnel/ChaosChain/internal/buildinfo.BuildTime=${build_time}"
 (
 	cd "$repo_root"

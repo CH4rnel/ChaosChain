@@ -21,6 +21,7 @@ VERSION="$version" COMMIT="$commit" BUILD_TIME="$build_time" scripts/build-relea
 archive="$(find "$release_dir" -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
 tar -xzf "$archive" -C "$release_dir"
 bundle="$(find "$release_dir" -mindepth 1 -maxdepth 1 -type d -name 'chaoschain-*' -print -quit)"
+cmp LICENSE "${bundle}/LICENSE"
 reported="$("${bundle}/chaoschaind" version --output json)"
 jq -e --arg version "$version" --arg commit "$commit" --arg build_time "$build_time" '
   .version == $version and .commit == $commit and .build_time == $build_time

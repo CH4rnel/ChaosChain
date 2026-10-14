@@ -155,7 +155,10 @@ at it in public, in a direction that does not get weaker with time.
 
 ## LICENSE
 
-Apache-2.0.
+ChaosChain is proprietary software. All rights reserved. No permission to use,
+modify, distribute, or deploy the project is granted except under a separate
+written license from CH4rnel. See [LICENSE](LICENSE). Third-party components
+remain subject to their respective licenses and notices.
 
 <div align="center">
 
