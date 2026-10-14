@@ -54,7 +54,6 @@ export CHAOSCHAIN_TEST_ROOT="$test_root/target"
 	"${test_root}/bootstrap" \
 	"test-validator" \
 	"$trusted_genesis_sha"
-
 [[ -x "${test_root}/target/usr/local/bin/chaoschaind" ]]
 [[ -f "${test_root}/target/var/lib/chaoschain/config/priv_validator_key.json" ]]
 [[ "$(stat -c '%a' "${test_root}/target/var/lib/chaoschain/config/priv_validator_key.json")" == 600 ]]
@@ -91,17 +90,20 @@ if GH_VERIFY_STATUS=1 CHAOSCHAIN_TEST_ROOT="${test_root}/untrusted-target" \
 fi
 [[ ! -e "${test_root}/untrusted-target/usr/local/bin/chaoschaind" ]]
 
-if output="$(CHAOSCHAIN_TEST_ROOT="${test_root}/wrong-genesis-target" \
+if CHAOSCHAIN_TEST_ROOT="${test_root}/wrong-genesis-target" \
 	"${repo_root}/ops/validator/scripts/install-validator.sh" \
-	"${test_root}/chaoschaind-test-linux-amd64.tar.gz" \
+	"${test_root}/chaoschain-test-linux-amd64.tar.gz" \
 	"${test_root}/SHA256SUMS" \
 	"${test_root}/bootstrap" \
 	"wrong-genesis-validator" \
-	"$(printf '%064d' 0)" 2>&1)"; then
+	"$(printf '%064d' 0)" >"${test_root}/wrong-genesis.log" 2>&1; then
 	echo "installer accepted a bootstrap with the wrong trusted genesis fingerprint" >&2
 	exit 1
 fi
-grep -Fq 'genesis fingerprint does not match the trusted value' <<<"$output"
+if ! grep -Fq 'genesis fingerprint does not match the trusted value' "${test_root}/wrong-genesis.log"; then
+	cat "${test_root}/wrong-genesis.log" >&2
+	exit 1
+fi
 [[ ! -e "${test_root}/wrong-genesis-target/usr/local/bin/chaoschaind" ]]
 
 echo "validator host installation tests passed"

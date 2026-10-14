@@ -35,7 +35,8 @@ if [[ -e "$node_home" || -L "$node_home" ]]; then
 	echo "refusing to overwrite existing validator home: ${node_home}" >&2
 	exit 1
 fi
-[[ -f "$release_archive" && -f "$release_sums" ]] || { echo "release archive or checksum file is missing" >&2; exit 1; }
+[[ -f "$release_archive" ]] || { echo "release archive does not exist: ${release_archive}" >&2; exit 1; }
+[[ -f "$release_sums" ]] || { echo "release checksum file does not exist: ${release_sums}" >&2; exit 1; }
 [[ -f "${bootstrap_dir}/SHA256SUMS" && -f "${bootstrap_dir}/bootstrap.json" && -f "${bootstrap_dir}/genesis.json" ]] || {
 	echo "public bootstrap directory is incomplete" >&2
 	exit 1

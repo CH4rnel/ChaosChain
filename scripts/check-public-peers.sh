@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$#" -ne 2 || ! "$2" =~ ^[1-9][0-9]*$ ]]; then
-	echo "Usage: $0 <verified-bootstrap-directory> <minimum-reachable-peers>" >&2
+if [[ "$#" -ne 3 || ! "$2" =~ ^[1-9][0-9]*$ || ! "$3" =~ ^[0-9a-f]{64}$ ]]; then
+	echo "Usage: $0 <public-bootstrap-directory> <minimum-reachable-peers> <trusted-genesis-sha256>" >&2
 	exit 2
 fi
 
 bootstrap_dir="$(realpath "$1")"
 minimum_reachable="$2"
+trusted_genesis_sha="$3"
 for command in jq sha256sum getent timeout; do
 	command -v "$command" >/dev/null || { echo "required command not found: ${command}" >&2; exit 1; }
 done
@@ -20,7 +21,12 @@ done
 chain_id="$(jq -er '.chain_id | select(type == "string" and length > 0)' "${bootstrap_dir}/bootstrap.json")"
 expected_genesis_sha="$(jq -er '.genesis_sha256 | select(type == "string" and test("^[0-9a-f]{64}$"))' "${bootstrap_dir}/bootstrap.json")"
 persistent_peers="$(jq -er '.persistent_peers | select(type == "string" and length > 0)' "${bootstrap_dir}/bootstrap.json")"
-[[ "$(sha256sum "${bootstrap_dir}/genesis.json" | cut -d ' ' -f 1)" == "$expected_genesis_sha" ]] || {
+actual_genesis_sha="$(sha256sum "${bootstrap_dir}/genesis.json" | cut -d ' ' -f 1)"
+[[ "$actual_genesis_sha" == "$trusted_genesis_sha" ]] || {
+	echo "genesis fingerprint does not match the trusted value" >&2
+	exit 1
+}
+[[ "$actual_genesis_sha" == "$expected_genesis_sha" ]] || {
 	echo "bootstrap manifest does not match genesis" >&2
 	exit 1
 }
