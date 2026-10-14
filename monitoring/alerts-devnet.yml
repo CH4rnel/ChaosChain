@@ -25,6 +25,14 @@ groups:
         annotations:
           summary: Validator is falling behind the latest signed height
 
+      - alert: ChaosChainConsensusStalled
+        expr: (changes(cometbft_consensus_latest_block_height{job="chaoschain-devnet"}[5m]) == 0) and on (job, instance) (up{job="chaoschain-devnet"} == 1)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Validator block height has not advanced
+
       - alert: ChaosChainValidatorMissedBlocksRising
         expr: delta(cometbft_consensus_validator_missed_blocks{job="chaoschain-devnet"}[5m]) > 0
         labels:
