@@ -31,7 +31,8 @@ printf '%s\n' '{"version":"test","commit":"abc123"}' >"${test_root}/release/chao
 tar -C "${test_root}/release" -czf "${test_root}/chaoschain-test-linux-amd64.tar.gz" chaoschain-test-linux-amd64
 (cd "$test_root" && sha256sum chaoschain-test-linux-amd64.tar.gz >SHA256SUMS)
 printf '%s\n' '{"chain_id":"chaos-devnet-1"}' >"${test_root}/bootstrap/genesis.json"
-jq -n --arg sha "$(sha256sum "${test_root}/bootstrap/genesis.json" | cut -d ' ' -f 1)" '{chain_id:"chaos-devnet-1",minimum_gas_price:"0.025uchaos",genesis_sha256:$sha,persistent_peers:"peerid@seed.example.org:27656"}' >"${test_root}/bootstrap/bootstrap.json"
+trusted_genesis_sha="$(sha256sum "${test_root}/bootstrap/genesis.json" | cut -d ' ' -f 1)"
+jq -n --arg sha "$trusted_genesis_sha" '{chain_id:"chaos-devnet-1",minimum_gas_price:"0.025uchaos",genesis_sha256:$sha,persistent_peers:"peerid@seed.example.org:27656"}' >"${test_root}/bootstrap/bootstrap.json"
 (cd "${test_root}/bootstrap" && sha256sum bootstrap.json genesis.json >SHA256SUMS)
 
 for command in useradd chown systemctl gh; do
@@ -51,7 +52,8 @@ export CHAOSCHAIN_TEST_ROOT="$test_root/target"
 	"${test_root}/chaoschain-test-linux-amd64.tar.gz" \
 	"${test_root}/SHA256SUMS" \
 	"${test_root}/bootstrap" \
-	"test-validator"
+	"test-validator" \
+	"$trusted_genesis_sha"
 
 [[ -x "${test_root}/target/usr/local/bin/chaoschaind" ]]
 [[ -f "${test_root}/target/var/lib/chaoschain/config/priv_validator_key.json" ]]
@@ -71,7 +73,8 @@ if "${repo_root}/ops/validator/scripts/install-validator.sh" \
 	"${test_root}/chaoschain-test-linux-amd64.tar.gz" \
 	"${test_root}/SHA256SUMS" \
 	"${test_root}/bootstrap" \
-	"test-validator" >/dev/null 2>&1; then
+	"test-validator" \
+	"$trusted_genesis_sha" >/dev/null 2>&1; then
 	echo "installer accepted an existing validator home" >&2
 	exit 1
 fi
@@ -81,10 +84,24 @@ if GH_VERIFY_STATUS=1 CHAOSCHAIN_TEST_ROOT="${test_root}/untrusted-target" \
 	"${test_root}/chaoschain-test-linux-amd64.tar.gz" \
 	"${test_root}/SHA256SUMS" \
 	"${test_root}/bootstrap" \
-	"untrusted-validator" >/dev/null 2>&1; then
+	"untrusted-validator" \
+	"$trusted_genesis_sha" >/dev/null 2>&1; then
 	echo "installer accepted a release with rejected provenance" >&2
 	exit 1
 fi
 [[ ! -e "${test_root}/untrusted-target/usr/local/bin/chaoschaind" ]]
+
+if output="$(CHAOSCHAIN_TEST_ROOT="${test_root}/wrong-genesis-target" \
+	"${repo_root}/ops/validator/scripts/install-validator.sh" \
+	"${test_root}/chaoschaind-test-linux-amd64.tar.gz" \
+	"${test_root}/SHA256SUMS" \
+	"${test_root}/bootstrap" \
+	"wrong-genesis-validator" \
+	"$(printf '%064d' 0)" 2>&1)"; then
+	echo "installer accepted a bootstrap with the wrong trusted genesis fingerprint" >&2
+	exit 1
+fi
+grep -Fq 'genesis fingerprint does not match the trusted value' <<<"$output"
+[[ ! -e "${test_root}/wrong-genesis-target/usr/local/bin/chaoschaind" ]]
 
 echo "validator host installation tests passed"
