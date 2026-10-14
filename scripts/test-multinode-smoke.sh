@@ -75,6 +75,23 @@ wait_for_tx() {
 	return 1
 }
 
+wait_for_metric() {
+	local index="$1"
+	local port="$2"
+	local metric="$3"
+	local metrics
+	for _ in $(seq 1 30); do
+		metrics="$(curl -fsS --max-time 5 "http://127.0.0.1:${port}/metrics" 2>/dev/null)" || true
+		if grep -Eq "^${metric}(\\{| )" <<<"${metrics:-}"; then
+			return 0
+		fi
+		sleep 1
+	done
+	echo "node ${index} did not expose ${metric} after 30 seconds" >&2
+	grep -E '^cometbft_consensus_' <<<"${metrics:-}" | head -n 20 >&2 || true
+	return 1
+}
+
 block_hash() {
 	local port="$1"
 	local height="$2"
@@ -116,12 +133,11 @@ for index in $(seq 1 "$validator_count"); do
 	wait_for_height "$rpc_port" 2
 	scripts/check-validator-health.sh "http://127.0.0.1:${rpc_port}" "$chain_id" 3
 	metrics="$(curl -fsS --max-time 5 "http://127.0.0.1:${metrics_port}/metrics")"
-	for metric in cometbft_p2p_peers cometbft_consensus_validator_last_signed_height; do
-		if ! grep -Eq "^${metric}(\\{| )" <<<"$metrics"; then
-			echo "node ${index} did not expose ${metric}" >&2
-			exit 1
-		fi
-	done
+	if ! grep -Eq '^cometbft_p2p_peers(\{| )' <<<"$metrics"; then
+		echo "node ${index} did not expose cometbft_p2p_peers" >&2
+		exit 1
+	fi
+	wait_for_metric "$index" "$metrics_port" cometbft_consensus_validator_last_signed_height
 done
 
 reference_hash="$(block_hash "$(jq -er '.nodes[0].rpc_port' "${network_root}/network.json")" 2)"
