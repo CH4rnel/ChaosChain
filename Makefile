@@ -88,7 +88,7 @@ vuln:
 	bash scripts/check-vuln.sh
 
 sbom:
-	GOTOOLCHAIN=go1.26.8 $(GOCMD) run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@$(CYCLONEDX_GOMOD_VERSION) mod -json -output $(SBOM_OUTPUT)
+	GOTOOLCHAIN=go1.26.9 $(GOCMD) run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@$(CYCLONEDX_GOMOD_VERSION) mod -json -output $(SBOM_OUTPUT)
 
 clean: clean-tools
 	rm -rf ./bin coverage.out coverage.html sbom.json

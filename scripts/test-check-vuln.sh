@@ -2,6 +2,10 @@
 set -euo pipefail
 
 go() {
+	if [[ "${GOTOOLCHAIN:-}" != "go1.26.9" ]]; then
+		echo "vulnerability scan must use the patched Go 1.26.9 toolchain" >&2
+		return 99
+	fi
 	printf '%s\n' "$VULN_TEST_STREAM"
 	return "${VULN_TEST_SCANNER_STATUS:-0}"
 }
