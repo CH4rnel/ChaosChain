@@ -38,6 +38,7 @@ check-network-profile:
 
 check-monitoring:
 	docker run --rm --network none --read-only -v "$(CURDIR):/project:ro" -w /project --entrypoint /bin/promtool prom/prometheus@sha256:29c1e0b48ad816750245dea3d65ac3ce57dda30547e67b1e9a5176e2953cc4dc check config monitoring/prometheus-devnet.yml
+	docker run --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m -v "$(CURDIR):/project:ro" -w /project --entrypoint /bin/promtool prom/prometheus@sha256:29c1e0b48ad816750245dea3d65ac3ce57dda30547e67b1e9a5176e2953cc4dc test rules monitoring/alerts-devnet.test.yml
 
 test-export-bootstrap:
 	bash scripts/test-export-bootstrap.sh

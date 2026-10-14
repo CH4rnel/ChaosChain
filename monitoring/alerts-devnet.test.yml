@@ -1,0 +1,33 @@
+rule_files:
+  - alerts-devnet.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="chaoschain-devnet", instance="validator-stalled"}'
+        values: '1+0x10'
+      - series: 'cometbft_consensus_latest_block_height{job="chaoschain-devnet", instance="validator-stalled"}'
+        values: '100+0x10'
+      - series: 'up{job="chaoschain-devnet", instance="validator-progressing"}'
+        values: '1+0x10'
+      - series: 'cometbft_consensus_latest_block_height{job="chaoschain-devnet", instance="validator-progressing"}'
+        values: '100+1x10'
+      - series: 'up{job="chaoschain-devnet", instance="validator-down"}'
+        values: '0+0x10'
+      - series: 'cometbft_consensus_latest_block_height{job="chaoschain-devnet", instance="validator-down"}'
+        values: '100+0x10'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: ChaosChainConsensusStalled
+        exp_alerts:
+          - exp_labels:
+              instance: validator-stalled
+              job: chaoschain-devnet
+              severity: critical
+            exp_annotations:
+              summary: Validator block height has not advanced
+      - eval_time: 7m
+        alertname: ChaosChainConsensusStalled
+        exp_alerts: []
