@@ -51,6 +51,8 @@ jobs:
         run: make test-verify-release-provenance
       - name: Test public peer reachability preflight
         run: make test-public-peer-preflight
+      - name: Test trusted full-node join
+        run: make test-join-testnet
       - name: Test public bootstrap export
         run: make test-export-bootstrap
       - name: Upload coverage artifact
