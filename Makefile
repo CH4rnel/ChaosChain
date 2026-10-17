@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: build release test test-cover check-network-profile check-monitoring test-export-bootstrap test-validator-health test-validator-backup test-validator-restore test-validator-install test-verify-release-provenance test-public-peer-preflight test-join-testnet test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
+.PHONY: build release test test-cover check-network-profile check-monitoring test-export-bootstrap test-validator-health test-validator-backup test-validator-restore test-validator-install test-verify-release-provenance test-public-peer-preflight test-join-testnet test-cli-smoke test-multinode-smoke test-release test-release-version lint sast vuln sbom clean install-tools clean-tools
 
 GOCMD=go
 GOTEST=$(GOCMD) test
@@ -72,6 +72,9 @@ test-multinode-smoke: check-network-profile
 
 test-release:
 	bash scripts/test-release.sh
+
+test-release-version:
+	bash scripts/test-release-version.sh
 
 clean-tools:
 	@echo "Removing old golangci-lint binary..."
