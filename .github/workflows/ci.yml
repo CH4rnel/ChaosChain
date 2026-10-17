@@ -47,7 +47,7 @@ jobs:
         run: make test-validator-restore
       - name: Test isolated VPS validator installation
         run: make test-validator-install
-      - name: Test release provenance verification
+      - name: Test trusted release provenance for node operators
         run: make test-verify-release-provenance
       - name: Test public peer reachability preflight
         run: make test-public-peer-preflight

@@ -1,6 +1,19 @@
 # Join the testnet as a full node
 
-Obtain the Linux AMD64 daemon release and the public bootstrap bundle from the network operator. Verify the release checksum and inspect its build information against the release announced by the operator. The bootstrap bundle's own checksums only show that its files agree with that bundle; they do not authenticate which chain it describes.
+Obtain the Linux AMD64 daemon release and the public bootstrap bundle from the network operator. Before extracting the release or creating a node home, verify both its checksum and its GitHub artifact attestation from this repository's CI workflow:
+
+```sh
+RELEASE_ARCHIVE=/opt/chaoschain/chaoschaind-vX-linux-amd64.tar.gz
+RELEASE_SHA256SUMS=/opt/chaoschain/SHA256SUMS
+
+(cd "$(dirname "$RELEASE_SHA256SUMS")" && \
+  sha256sum --check --strict "$(basename "$RELEASE_SHA256SUMS")")
+scripts/verify-release-provenance.sh "$RELEASE_ARCHIVE"
+```
+
+Only after both checks pass, extract the archive and compare `build-info.json` with the release announced by the operator. The validator installer uses this same provenance verifier internally. A checksum catches accidental corruption; the attestation identifies the repository and workflow that produced the archive.
+
+The bootstrap bundle's own checksums only show that its files agree with that bundle; they do not authenticate which chain it describes.
 
 Get the expected genesis SHA-256 from the operator through a separate authenticated channel. Do not copy it from `bootstrap.json`, `SHA256SUMS`, or another file in the bundle. Compare it with the bundle's genesis before joining:
 
