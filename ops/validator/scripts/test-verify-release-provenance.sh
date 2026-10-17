@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+shared_verifier="${repo_root}/scripts/verify-release-provenance.sh"
 test_root="$(mktemp -d /tmp/chaoschain-release-attestation-test.XXXXXX)"
 trap 'rm -rf "$test_root"' EXIT
 
@@ -23,6 +24,12 @@ grep -Fq -- '--repo CH4rnel/ChaosChain' "${GH_VERIFY_ARGS_FILE}"
 grep -Fq -- '--signer-workflow CH4rnel/ChaosChain/.github/workflows/ci.yml' "${GH_VERIFY_ARGS_FILE}"
 grep -Fq "${test_root}/chaoschaind.tar.gz" "${GH_VERIFY_ARGS_FILE}"
 
+"$shared_verifier" "${test_root}/chaoschaind.tar.gz"
+grep -Fq 'attestation verify ' "${GH_VERIFY_ARGS_FILE}"
+grep -Fq -- '--repo CH4rnel/ChaosChain' "${GH_VERIFY_ARGS_FILE}"
+grep -Fq -- '--signer-workflow CH4rnel/ChaosChain/.github/workflows/ci.yml' "${GH_VERIFY_ARGS_FILE}"
+grep -Fq "${test_root}/chaoschaind.tar.gz" "${GH_VERIFY_ARGS_FILE}"
+
 export GH_VERIFY_STATUS=1
 if "${repo_root}/ops/validator/scripts/verify-release-provenance.sh" "${test_root}/chaoschaind.tar.gz" >/dev/null 2>&1; then
 	echo "release verifier accepted an artifact without trusted provenance" >&2
@@ -31,6 +38,10 @@ fi
 
 if "${repo_root}/ops/validator/scripts/verify-release-provenance.sh" "${test_root}/missing.tar.gz" >/dev/null 2>&1; then
 	echo "release verifier accepted a missing artifact" >&2
+	exit 1
+fi
+if "$shared_verifier" "${test_root}/missing.tar.gz" >/dev/null 2>&1; then
+	echo "shared release verifier accepted a missing artifact" >&2
 	exit 1
 fi
 
