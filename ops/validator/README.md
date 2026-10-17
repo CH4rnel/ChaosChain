@@ -2,6 +2,37 @@
 
 This installer prepares one fresh Linux AMD64 host from a release archive and a public bootstrap bundle. It verifies both SHA256SUMS files, checks the bootstrap manifest against genesis, initializes a new local validator identity, and installs a hardened systemd service. It refuses to replace an existing validator home. Never copy a validator home or private validator key between hosts.
 
+## Published validator releases
+
+The CI workflow publishes a durable GitHub release when a `vMAJOR.MINOR.PATCH` tag points to a commit already present in `master`. The archive and `SHA256SUMS` are attached only after the release archive receives a GitHub artifact attestation from this repository's CI workflow. Pull requests and ordinary branch builds do not publish GitHub releases. Do not reuse a version tag.
+
+Create and push a version tag only after reviewing the commit and confirming that CI is green:
+
+```sh
+git tag -a v1.2.3 -m "chaoschain v1.2.3"
+git push origin v1.2.3
+```
+
+Wait for the tag's `ChaosChain CI` run to finish successfully, then download and verify the exact release assets before installation:
+
+```sh
+release_dir="$(mktemp -d)"
+gh release download v1.2.3 \
+  --repo CH4rnel/ChaosChain \
+  --pattern 'chaoschain-v1.2.3-linux-amd64.tar.gz' \
+  --pattern SHA256SUMS \
+  --dir "$release_dir"
+(
+  cd "$release_dir"
+  sha256sum --check --strict SHA256SUMS
+  gh attestation verify chaoschain-v1.2.3-linux-amd64.tar.gz \
+    --repo CH4rnel/ChaosChain \
+    --signer-workflow CH4rnel/ChaosChain/.github/workflows/ci.yml
+)
+```
+
+The validator installer repeats checksum and provenance verification before extracting the daemon or creating a node home. A checksum detects changed bytes; the attestation identifies the trusted build workflow. Neither proves that the genesis belongs to the intended network, so provide the independently obtained genesis fingerprint as documented below.
+
 The host needs Bash, jq, tar, coreutils, systemd, GitHub CLI with attestation support, and a ChaosChain release archive. The installer verifies the archive checksum and requires GitHub's artifact attestation to identify the ChaosChain repository and its CI workflow as the signer before it extracts or installs anything. Use an archive produced by a push to the official master branch; pull request build artifacts are not signed. Run the installer as root with the release archive, the matching release SHA256SUMS file, the extracted public bootstrap directory, a unique moniker, and the trusted genesis SHA-256 fingerprint:
 
 ```sh
