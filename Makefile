@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: build release test test-cover check-network-profile check-monitoring test-export-bootstrap test-validator-health test-validator-backup test-validator-restore test-validator-install test-verify-release-provenance test-public-peer-preflight test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
+.PHONY: build release test test-cover check-network-profile check-monitoring test-export-bootstrap test-validator-health test-validator-backup test-validator-restore test-validator-install test-verify-release-provenance test-public-peer-preflight test-join-testnet test-cli-smoke test-multinode-smoke test-release lint sast vuln sbom clean install-tools clean-tools
 
 GOCMD=go
 GOTEST=$(GOCMD) test
@@ -60,6 +60,9 @@ test-verify-release-provenance:
 
 test-public-peer-preflight:
 	bash scripts/test-public-peer-preflight.sh
+
+test-join-testnet:
+	bash scripts/test-join-testnet.sh
 
 test-cli-smoke: check-network-profile
 	bash scripts/test-cli-smoke.sh
