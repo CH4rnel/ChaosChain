@@ -54,6 +54,8 @@ jobs:
         run: make test-public-peer-preflight
       - name: Test trusted full-node join
         run: make test-join-testnet
+      - name: Test network recovery probe
+        run: make test-network-recovery
       - name: Test public bootstrap export
         run: make test-export-bootstrap
       - name: Test release version tags

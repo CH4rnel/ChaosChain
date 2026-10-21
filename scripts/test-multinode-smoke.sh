@@ -218,6 +218,7 @@ offline_node_balance="$($binary query bank balances "$alice_address" --node "tcp
 [[ "$offline_node_balance" -eq "$backlog_balance" ]]
 
 cold_height="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.sync_info.latest_block_height | tonumber')"
+cold_hash="$(block_hash "$node1_rpc" "$cold_height")"
 stop_node "$observer_index"
 validator_address="$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.validator_info.address')"
 validator_key_sha="$(sha256sum "${network_root}/node1/config/priv_validator_key.json" | cut -d ' ' -f 1)"
@@ -238,11 +239,26 @@ cold_recovery_height=$((cold_height + 2))
 wait_for_height "$node1_rpc" "$cold_recovery_height"
 [[ "$(curl -fsS "http://127.0.0.1:${node1_rpc}/status" | jq -er '.result.validator_info.address')" == "$validator_address" ]]
 cold_recovery_hash="$(block_hash "$node1_rpc" "$cold_recovery_height")"
+recovery_rpcs=("http://127.0.0.1:${node1_rpc}")
 for index in $(seq 2 "$validator_count"); do
 	rpc_port="$(jq -er --argjson index "$index" '.nodes[] | select(.index == $index) | .rpc_port' "${network_root}/network.json")"
 	wait_for_height "$rpc_port" "$cold_recovery_height"
 	[[ "$(block_hash "$rpc_port" "$cold_recovery_height")" == "$cold_recovery_hash" ]]
+	recovery_rpcs+=("http://127.0.0.1:${rpc_port}")
 done
+recovery_verified=false
+for _ in $(seq 1 30); do
+	if recovery_result="$(scripts/check-network-recovery.sh "$chain_id" "$cold_height" "$cold_hash" "${recovery_rpcs[@]}" 2>&1)"; then
+		recovery_verified=true
+		break
+	fi
+	sleep 1
+done
+if [[ "$recovery_verified" != true ]]; then
+	echo "network recovery check failed: ${recovery_result}" >&2
+	exit 1
+fi
+echo "$recovery_result"
 
 recovered_balance="$($binary query bank balances "$alice_address" --node "tcp://127.0.0.1:${node2_rpc}" --home "${network_root}/node2" --output json 2>/dev/null | jq -er --arg denom "$base_denom" '.balances[] | select(.denom == $denom) | .amount')"
 [[ "$recovered_balance" == "$persisted_balance" ]]
