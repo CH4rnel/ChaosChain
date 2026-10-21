@@ -59,6 +59,8 @@ The check verifies bundle checksums, compares genesis against the independently 
 
 Before using this on a real validator, review the release commit and genesis with the network operator, confirm the advertised persistent peers are reachable, and verify the VPS firewall allows inbound P2P while keeping RPC, REST, SSH, and metrics restricted. This installer does not provision a VPS, create a funded account, submit a validator transaction, or prove independent multi-host consensus. Confirm service health and catch-up separately with `scripts/check-validator-health.sh`.
 
+For coordinated network maintenance, use the [planned halt and restart procedure](../../docs/planned-halt-restart.md) and keep the validator home and signing state tied to this host.
+
 For block-progress, peer, missed-block, and scrape alerts, see the [validator monitoring response notes](../../monitoring/README.md). The Prometheus rules are tested in CI, but this repository does not configure Alertmanager notifications.
 
 The isolated fixture test runs without root, creates no system account, and uses stubbed systemd commands:

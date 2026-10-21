@@ -12,6 +12,8 @@ The final argument is the minimum peer count and defaults to one. Use the chain 
 
 A failed check is a prompt to inspect the node and its connectivity, not an instruction to restart it automatically. Compare the reported height with other validators and inspect the daemon logs before intervening. For a planned stop, stop the validator through its process supervisor, confirm the process exited, and preserve its home directory. Start it again with the same home and network configuration, then rerun the health check and confirm that it has caught up and reconnected.
 
+For a coordinated stop of the whole network, follow the [planned halt and restart procedure](planned-halt-restart.md). It records a block checkpoint before shutdown and verifies that every validator returns to that same chain and advances beyond it.
+
 The four-node profile enables CometBFT metrics on loopback ports 27660, 27670, 27680, and 27690. From the repository root, a Prometheus instance on the same host can scrape them with:
 
 ```sh

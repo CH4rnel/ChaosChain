@@ -31,6 +31,7 @@ for dependency in curl jq; do
 done
 
 lowest_height=""
+declare -A validator_addresses=()
 for rpc_input in "$@"; do
 	if [[ ! "$rpc_input" =~ ^https?://[^/[:space:]]+/?$ ]]; then
 		echo "invalid RPC URL: ${rpc_input}" >&2
@@ -45,15 +46,23 @@ for rpc_input in "$@"; do
 		.result.node_info.network as $chain |
 		.result.sync_info.latest_block_height as $height |
 		.result.sync_info.catching_up as $catching_up |
+		.result.validator_info.address as $address |
 		select(($chain | type) == "string" and ($chain | length) > 0) |
 		select(($height | tostring | test("^(0|[1-9][0-9]{0,17})$"))) |
 		select(($catching_up | type) == "boolean") |
-		[$chain, ($height | tostring), ($catching_up | tostring)] | @tsv
+		select(($address | type) == "string" and ($address | test("^[0-9a-fA-F]{40}$"))) |
+		[$chain, ($height | tostring), ($catching_up | tostring), $address] | @tsv
 	' <<<"$status_json" 2>/dev/null)"; then
 		echo "malformed status response: ${rpc_url}" >&2
 		exit 1
 	fi
-	IFS=$'\t' read -r chain_id height catching_up <<<"$snapshot"
+	IFS=$'\t' read -r chain_id height catching_up validator_address <<<"$snapshot"
+	validator_address="${validator_address^^}"
+	if [[ "$validator_address" == "0000000000000000000000000000000000000000" || -n "${validator_addresses[$validator_address]:-}" ]]; then
+		echo "duplicate or inactive validator identity at ${rpc_url}" >&2
+		exit 1
+	fi
+	validator_addresses[$validator_address]=1
 	if [[ "$chain_id" != "$expected_chain" ]]; then
 		echo "wrong chain at ${rpc_url}: expected ${expected_chain}, got ${chain_id}" >&2
 		exit 1
