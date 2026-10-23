@@ -147,11 +147,15 @@ for index in $(seq 2 "$validator_count"); do
 done
 
 bootstrap_bundle="${smoke_dir}/public-bootstrap"
-scripts/export-bootstrap.sh "$network_root" "$bootstrap_bundle" 127.0.0.1
+peer_endpoints="${smoke_dir}/peer-endpoints.json"
+jq '{peers: [.nodes[] | {node_id, host: "127.0.0.1", p2p_port}]}' "${network_root}/network.json" >"$peer_endpoints"
+scripts/export-bootstrap.sh "$network_root" "$bootstrap_bundle" "$peer_endpoints"
 (
 	cd "$bootstrap_bundle"
 	sha256sum --check SHA256SUMS >/dev/null
 )
+expected_peers="$(jq -r '[.peers[] | .node_id + "@" + .host + ":" + (.p2p_port | tostring)] | join(",")' "$peer_endpoints")"
+[[ "$(jq -r '.persistent_peers' "${bootstrap_bundle}/bootstrap.json")" == "$expected_peers" ]]
 observer_index=$((validator_count + 1))
 observer_home="${network_root}/node${observer_index}"
 port_stride="$(jq -er '.multinode.port_stride' "$profile")"
