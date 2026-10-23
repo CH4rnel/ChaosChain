@@ -1,5 +1,7 @@
 # Validator host installation
 
+For publishing a bootstrap bundle with node IDs and P2P addresses collected from real hosts, follow [the bootstrap publication procedure](../../docs/publish-bootstrap.md). The local multi-node fixture is not a substitute for those addresses.
+
 This installer prepares one fresh Linux AMD64 host from a release archive and a public bootstrap bundle. It verifies both SHA256SUMS files, checks the bootstrap manifest against genesis, initializes a new local validator identity, and installs a hardened systemd service. It refuses to replace an existing validator home. Never copy a validator home or private validator key between hosts.
 
 ## Published validator releases
