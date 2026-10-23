@@ -2,15 +2,15 @@
 set -euo pipefail
 
 if [[ "$#" -ne 3 ]]; then
-	echo "Usage: $0 <network-root> <output-directory> <advertised-host>" >&2
+	echo "Usage: $0 <network-root> <output-directory> <peer-endpoints.json>" >&2
 	exit 2
 fi
 
 network_input="$1"
 output_input="$2"
-advertised_host="$3"
-if [[ ! "$advertised_host" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ]]; then
-	echo "advertised host must be a DNS name or IPv4 address" >&2
+endpoints="$3"
+if [[ ! -f "$endpoints" ]]; then
+	echo "peer endpoints file does not exist: ${endpoints}" >&2
 	exit 2
 fi
 if [[ ! -d "$network_input" ]]; then
@@ -35,12 +35,21 @@ if [[ "$actual_sha" != "$expected_sha" || "$genesis_chain_id" != "$chain_id" ]];
 	exit 1
 fi
 if ! jq -e '
-  (.nodes | type == "array" and length > 0) and
-  (all(.nodes[]; (.node_id | type == "string" and test("^[0-9a-f]{40}$")) and
-                 (.p2p_port | type == "number" and floor == . and . >= 1 and . <= 65535))) and
-  ([.nodes[].node_id] | unique | length) == (.nodes | length)
-' "$manifest" >/dev/null; then
-	echo "network manifest has invalid peer identities or ports" >&2
+  def valid_host:
+    type == "string" and length <= 253 and
+    (split(".") | length > 0 and all(.[]; length > 0 and length <= 63 and test("^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$"))) and
+    (if test("^[0-9.]+$") then
+      (split(".") | length == 4 and all(.[]; test("^[0-9]{1,3}$") and (tonumber <= 255)))
+    else true end);
+  (.peers | type == "array" and length > 0) and
+  (all(.peers[]; (keys | sort) == ["host", "node_id", "p2p_port"] and
+    (.node_id | type == "string" and test("^[0-9a-f]{40}$")) and
+    (.host | valid_host) and
+    (.p2p_port | type == "number" and floor == . and . >= 1 and . <= 65535))) and
+  ([.peers[].node_id] | unique | length) == (.peers | length) and
+  ([.peers[] | .host + ":" + (.p2p_port | tostring)] | unique | length) == (.peers | length)
+' "$endpoints" >/dev/null; then
+	echo "peer endpoints file has invalid or duplicate identities, hosts, or ports" >&2
 	exit 1
 fi
 
@@ -66,11 +75,11 @@ cleanup() {
 trap cleanup EXIT
 
 cp "$genesis" "${staging}/genesis.json"
-jq -n --arg chain "$chain_id" --arg minimum_gas_price "$minimum_gas_price" --arg sha "$actual_sha" --arg host "$advertised_host" --slurpfile network "$manifest" '{
+jq -n --arg chain "$chain_id" --arg minimum_gas_price "$minimum_gas_price" --arg sha "$actual_sha" --slurpfile endpoints "$endpoints" '{
   chain_id: $chain,
   minimum_gas_price: $minimum_gas_price,
   genesis_sha256: $sha,
-  persistent_peers: ([$network[0].nodes[] | .node_id + "@" + $host + ":" + (.p2p_port | tostring)] | join(","))
+  persistent_peers: ([$endpoints[0].peers[] | .node_id + "@" + .host + ":" + (.p2p_port | tostring)] | join(","))
 }' >"${staging}/bootstrap.json"
 (
 	cd "$staging"
